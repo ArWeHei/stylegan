@@ -1,0 +1,8 @@
+dataset: stylegan.dataset.CelebA
+model: stylegan.model.TrainModel
+iterator: stylegan.trainer.ListTrainer
+
+batch_size: 1
+num_epochs: 1
+
+resolution: 128
