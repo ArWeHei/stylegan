@@ -1,4 +1,4 @@
-from edflow.data.dataset import DatasetMixin
+from edflow.data.dataset import DatasetMixin, ProcessesDataset
 from edflow.custom_logging import get_logger
 from edflow.util import pprint
 
@@ -8,6 +8,16 @@ import glob
 
 import numpy as np
 import pandas as pd
+
+def CelebA_w_Noise(config)
+    return ProcessesDataset(CelebA(config), noise_process)
+
+def noise_process(config):
+    latent_size = config.get('latent_size', 512) # Latent vector (Z) dimensionality.
+    latents = np.random.randn(1, latent_size)
+    return {'latent':latent}
+    
+ 
 
 class CelebA(DatasetMixin):
     #returns 128x128 images from CelebA

@@ -124,7 +124,7 @@ class discriminator(object):
 
     @property
     def inputs(self):
-        return {'latents_in':self.images_in, 'labels_in': self.labels_in}
+        return {'images_in':self.images_in, 'labels_in': self.labels_in}
 
     @property
     def outputs(self):

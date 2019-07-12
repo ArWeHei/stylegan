@@ -56,7 +56,7 @@ class ListTrainer(TFListTrainer):
             'real_scores_out': real_scores_out,
             }
 
-        self.model.inputs = {'latents_in':latents_in, 'labels_in':labels_in}
+        self.model.inputs = {'latent':latents_in, 'features':labels_in, 'image':images_in}
 
         self.model.variables = tf.global_variables()
 
