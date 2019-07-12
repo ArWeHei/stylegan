@@ -1,4 +1,4 @@
-from edflow.data.dataset import DatasetMixin, ProcessesDataset
+from edflow.data.dataset import DatasetMixin, ProcessedDataset
 from edflow.custom_logging import get_logger
 from edflow.util import pprint
 
@@ -9,13 +9,14 @@ import glob
 import numpy as np
 import pandas as pd
 
-def CelebA_w_Noise(config)
-    return ProcessesDataset(CelebA(config), noise_process)
+def CelebA_w_Noise(config):
+    p = lambda **kwargs: noise_process(config, **kwargs)
+    return ProcessedDataset(CelebA(config), p)
 
-def noise_process(config):
+def noise_process(config, **kwargs):
     latent_size = config.get('latent_size', 512) # Latent vector (Z) dimensionality.
     latents = np.random.randn(1, latent_size)
-    return {'latent':latent}
+    return {'latent':latents[0], **kwargs}
     
  
 
@@ -50,5 +51,5 @@ class CelebA(DatasetMixin):
         assert img.shape == (218, 178, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
-        example = {'image':img, 'features':features, 'feature_vec':features_vec}
+        example = {'image':img, 'feature_vec':features_vec}
         return example
