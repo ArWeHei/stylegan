@@ -75,18 +75,18 @@ class generator(object):
         return {'images_out': self.images_out}
 
     def define_graph(self):
-        with tf.name_scope('placeholder'):
-            self.latents_in = tf.placeholder(dtype=self.kwargs['dtype'],
-                                       shape=[None, None],
-                                       name='latents_in')
-            self.labels_in = tf.placeholder(dtype=self.kwargs['dtype'],
-                                       shape=[None, None],
-                                       name='labels_in')
+        #with tf.name_scope('placeholder'):
+        #    self.latents_in = tf.placeholder(dtype=self.kwargs['dtype'],
+        #                               shape=[None, None],
+        #                               name='latents_in')
+        #    self.labels_in = tf.placeholder(dtype=self.kwargs['dtype'],
+        #                               shape=[None, None],
+        #                               name='labels_in')
     
         #components = {'synthesis':networks.G_synthesis, 'mapping':networks.G_mapping}
         components = dict()
         self.network = make_model(self.name, networks.G_style, components=components, **self.kwargs)
-        self.images_out = self.network(self.latents_in, self.labels_in)
+        #self.images_out = self.network(self.latents_in, self.labels_in)
 
 
     def __call__(self, latents_in, labels_in):
@@ -131,15 +131,15 @@ class discriminator(object):
         return {'scores_out': self.scores_out}
 
     def define_graph(self):
-        with tf.name_scope('placeholder'):
-            self.images_in = tf.placeholder(dtype=self.kwargs['dtype'],
-                                       shape=[None, None, None, None],
-                                       name='images_in')
-            self.labels_in = tf.placeholder(dtype=self.kwargs['dtype'],
-                                       shape=[None, None],
-                                       name='labels_in')
+        #with tf.name_scope('placeholder'):
+        #    self.images_in = tf.placeholder(dtype=self.kwargs['dtype'],
+        #                               shape=[None, None, None, None],
+        #                               name='images_in')
+        #    self.labels_in = tf.placeholder(dtype=self.kwargs['dtype'],
+        #                               shape=[None, None],
+        #                               name='labels_in')
         self.network = make_model(self.name, networks.D_basic, **self.kwargs)
-        self.scores_out = self.network(self.images_in, self.labels_in)
+        #self.scores_out = self.network(self.images_in, self.labels_in)
 
     def __call__(self, images_in, labels_in):
         return self.network(images_in, labels_in)
