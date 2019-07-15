@@ -56,7 +56,7 @@ class ListTrainer(TFListTrainer):
             'real_scores_out': real_scores_out,
             }
 
-        self.model.inputs = {'latent':latents_in, 'features_vec':labels_in, 'image':images_in}
+        self.model.inputs = {'latent':latents_in, 'feature_vec':labels_in, 'image':images_in}
 
         self.model.variables = tf.global_variables()
 
@@ -67,6 +67,12 @@ class ListTrainer(TFListTrainer):
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
 
+        self.img_ops['fake'] = self.model.outputs['images_out']
+        self.img_ops['real'] = self.model.inputs['image']
+        #self.log_ops['scores/fake'] = self.model.scores['fake_scores_out']
+        #self.log_ops['scores/real'] = self.model.scores['real_scores_out']
+        #self.hist_ops['losses/gen'] = gen_loss 
+        #self.hist_ops['losses/discr'] = discr_loss 
 
         losses = []
         losses.append({"generator": gen_loss})

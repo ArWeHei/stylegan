@@ -5,6 +5,11 @@ iterator: stylegan.trainer.ListTrainer
 batch_size: 1
 num_epochs: 1
 
+log_freq: 1000
+ckpt_freq: 100000
+ckpt_keep: 1
+log_images_to_tensorboard: True
+
 lr: 1.e-4
 lr_decay_begin : 10000 # TODO remove these in future versions
 lr_decay_end : 1000000  # TODO remove these in future versions
