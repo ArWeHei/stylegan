@@ -3,7 +3,7 @@ from edflow.iterators.tf_evaluator import TFBaseEvaluator
 from edflow.hooks.hook import Hook
 from edflow.hooks.util_hooks import IntervalHook
 from edflow.hooks.logging_hooks.tf_logging_hook import LoggingHook
-from edflow.hooks.logging_hooks.tf_logging_hook import ImageOverviewHook
+from edflow.hooks.checkpoint_hooks.tf_checkpoint_hook import CheckpointHook
 from edflow.util import pprint, retrieve
 from edflow.custom_logging import get_logger
 from edflow.project_manager import ProjectManager
@@ -23,7 +23,42 @@ class ListTrainer(TFListTrainer):
 
         self.curr_phase = 'discr'
 
-        super().setup()
+        self.train_placeholders = dict()
+        self.log_ops = dict()
+        self.img_ops = dict()
+        self.hist_ops = dict()
+        self.update_ops = list()
+        self.create_train_op()
+
+        ckpt_hook = CheckpointHook(
+            root_path=ProjectManager.checkpoints,
+            variables=self.get_checkpoint_variables(),
+            modelname="model",
+            step=self.get_global_step,
+            interval=self.config.get("ckpt_freq", None),
+            max_to_keep=self.config.get("ckpt_keep", None),
+            )
+        self.hooks.append(ckpt_hook)
+
+        loghook = LoggingHook(
+            histograms=self.hist_ops,
+            logs=self.log_ops,
+            scalars=self.log_ops,
+            images=self.img_ops,
+            root_path=ProjectManager.train,
+            interval=1,
+            log_images_to_tensorboard=self.config.get(
+                "log_images_to_tensorboard", False
+                ),
+            )
+        ihook = IntervalHook(
+            [loghook],
+            interval=self.config.get("start_log_freq", 1),
+            modify_each=1,
+            max_interval=self.config.get("log_freq", 1000),
+            get_step=self.get_global_step,
+                )
+        self.hooks.append(ihook)
 
 
     def define_connections(self):
@@ -67,12 +102,12 @@ class ListTrainer(TFListTrainer):
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
 
-        self.img_ops['fake'] = self.model.outputs['images_out']
-        self.img_ops['real'] = self.model.inputs['image']
-        #self.log_ops['scores/fake'] = self.model.scores['fake_scores_out']
-        #self.log_ops['scores/real'] = self.model.scores['real_scores_out']
-        #self.hist_ops['losses/gen'] = gen_loss 
-        #self.hist_ops['losses/discr'] = discr_loss 
+        self.img_ops['fake'] = tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1])
+        self.img_ops['real'] = tf.transpose(self.model.inputs['image'], [0, 2, 3, 1])
+        self.log_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
+        self.log_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
+        self.log_ops['losses/gen'] = tf.reduce_mean(gen_loss)
+        self.log_ops['losses/discr'] = tf.reduce_mean(discr_loss)
 
         losses = []
         losses.append({"generator": gen_loss})
@@ -81,9 +116,12 @@ class ListTrainer(TFListTrainer):
         return losses
 
     def run(self, fetches, feed_dict):
-        self.logger.info(fetches)
-        self.logger.info(feed_dict)
-        super().run(fetches, feed_dict)
+        #self.logger.info(feed_dict)
+        #self.logger.info(fetches)
+        result = super().run(fetches, feed_dict)
+        #pprint(result)
+        return result
+
     #def run(self, fetches, feed_dict):
     #    if self.curr_phase == 'discr':
     #        adj = 0.05
