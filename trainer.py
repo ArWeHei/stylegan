@@ -56,7 +56,7 @@ class ListTrainer(TFListTrainer):
             'real_scores_out': real_scores_out,
             }
 
-        self.model.inputs = {'latent':latents_in, 'features':labels_in, 'image':images_in}
+        self.model.inputs = {'latent':latents_in, 'features_vec':labels_in, 'image':images_in}
 
         self.model.variables = tf.global_variables()
 
@@ -74,6 +74,10 @@ class ListTrainer(TFListTrainer):
         
         return losses
 
+    def run(self, fetches, feed_dict):
+        self.logger.info(fetches)
+        self.logger.info(feed_dict)
+        super().run(fetches, feed_dict)
     #def run(self, fetches, feed_dict):
     #    if self.curr_phase == 'discr':
     #        adj = 0.05
