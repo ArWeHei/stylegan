@@ -11,6 +11,7 @@ from edflow.util import pprint
 def G_style(
     latents_in,                             # First input: Latent vectors (Z) [minibatch, latent_size].
     labels_in,                              # Second input: Conditioning labels [minibatch, label_size].
+    lod_in,
     truncation_psi          = 0.7,          # Style strength multiplier for the truncation trick. None = disable.
     truncation_cutoff       = 8,            # Number of layers for which to apply the truncation trick. None = disable.
     truncation_psi_val      = None,         # Value for truncation_psi to use during validation.
@@ -34,7 +35,7 @@ def G_style(
         components['mapping'] = lambda latents_in, labels_in: obj1(latents_in, labels_in, dlatent_size=dlatent_size, dlatent_broadcast=num_layers, **kwargs)
 
     # Setup variables.
-    lod_in = tf.get_variable('lod', initializer=np.float32(0), trainable=False)
+    #lod_in = tf.get_variable('lod', initializer=np.float32(0), trainable=False)
     dlatent_avg = tf.get_variable('dlatent_avg', shape=[dlatent_size], initializer=tf.initializers.zeros(), trainable=False)
 
     # Evaluate mapping network.
@@ -76,7 +77,7 @@ def G_style(
     # Evaluate synthesis network.
     #with tf.control_dependencies([tf.assign(components['synthesis'].find_var('lod'), lod_in)]):
     with tf.variable_scope('G_synthesis'):
-        images_out = components['synthesis'](dlatents)
+        images_out = components['synthesis'](dlatents, lod_in)
     return tf.identity(images_out, name='images_out')
 
 
@@ -136,6 +137,7 @@ def G_mapping(
 
 def G_synthesis(
     dlatents_in,                        # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
+    lod_in,
     dlatent_size        = 512,          # Disentangled latent (W) dimensionality.
     num_channels        = 3,            # Number of output color channels.
     resolution          = 1024,         # Output resolution.
@@ -174,7 +176,8 @@ def G_synthesis(
     # Primary inputs.
     dlatents_in.set_shape([None, num_styles, dlatent_size])
     dlatents_in = tf.cast(dlatents_in, dtype)
-    lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0), trainable=False), dtype)
+    #lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0), trainable=False), dtype)
+    #lod_in = lod
 
     # Noise inputs.
     noise_inputs = []
@@ -260,6 +263,7 @@ def G_synthesis(
 def D_basic(
     images_in,                          # First input: Images [minibatch, channel, height, width].
     labels_in,                          # Second input: Labels [minibatch, label_size].
+    lod_in,
     num_channels        = 3,            # Number of input color channels. Overridden based on dataset.
     resolution          = 32,           # Input resolution. Overridden based on dataset.
     label_size          = 0,            # Dimensionality of the labels, 0 if no labels. Overridden based on dataset.
@@ -289,7 +293,7 @@ def D_basic(
     labels_in.set_shape([None, label_size])
     images_in = tf.cast(images_in, dtype)
     labels_in = tf.cast(labels_in, dtype)
-    lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0.0), trainable=False), dtype)
+    #lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0.0), trainable=False), dtype)
     scores_out = None
 
     # Building blocks.

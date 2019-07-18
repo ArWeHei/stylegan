@@ -1,4 +1,4 @@
-dataset: stylegan.dataset.CelebA_w_Noise
+dataset: stylegan.dataset.CelebAnPortraits_w_Noise
 model: stylegan.model.TrainModel
 iterator: stylegan.trainer.ListTrainer
 
@@ -10,9 +10,10 @@ ckpt_freq: 10000
 ckpt_keep: 1
 log_images_to_tensorboard: True
 
-lr: 1.e-4
+lr: 2.e-3
 lr_decay_begin : 10000 # TODO remove these in future versions
-lr_decay_end : 1000000  # TODO remove these in future versions
+lr_decay_end : 10000000000  # TODO remove these in future versions
 
-label_size: 40
+#label_size: 40
+label_size: 1
 resolution: 128

@@ -77,11 +77,16 @@ class ListTrainer(TFListTrainer):
                                        name='images_in')
 
 
+        lod_in = make_linear_var(self.global_step, 0*600000, 8*600000, 4, 4)\
+               - make_linear_var(self.global_step, 1*600000, 2*600000, 0, 1)\
+               - make_linear_var(self.global_step, 3*600000, 4*600000, 0, 1)\
+               - make_linear_var(self.global_step, 5*600000, 6*600000, 0, 1)\
+               - make_linear_var(self.global_step, 7*600000, 8*600000, 0, 1)
         
-        images_out = self.model.generate(latents_in, labels_in)
+        images_out = self.model.generate(latents_in, labels_in, lod_in)
 
-        fake_scores_out = self.model.discriminate(images_out, labels_in)
-        real_scores_out = self.model.discriminate(images_in, labels_in)
+        fake_scores_out = self.model.discriminate(images_out, labels_in, lod_in)
+        real_scores_out = self.model.discriminate(images_in, labels_in, lod_in)
 
 
         self.model.outputs = {'images_out': images_out}
@@ -91,12 +96,12 @@ class ListTrainer(TFListTrainer):
             'real_scores_out': real_scores_out,
             }
 
-        self.model.inputs = {'latent':latents_in, 'feature_vec':labels_in, 'image':images_in}
+        #self.model.inputs = {'latent':latents_in, 'feature_vec':labels_in, 'image':images_in}
+        self.model.inputs = {'latent':latents_in, 'painted':labels_in, 'image':images_in}
 
         self.model.variables = tf.global_variables()
 
     def make_loss_ops(self):
-
         gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],
