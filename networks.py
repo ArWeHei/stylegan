@@ -29,7 +29,7 @@ def G_style(
     pprint(components)
     if 'synthesis' not in components.keys():
         obj0 = globals()['G_synthesis']
-        components['synthesis'] = lambda dlatents: obj0(dlatents, resolution=resolution, dlatent_size=dlatent_size, **kwargs)
+        components['synthesis'] = lambda dlatents, lod_in: obj0(dlatents, lod_in, resolution=resolution, dlatent_size=dlatent_size, **kwargs)
     if 'mapping' not in components:
         obj1 = globals()['G_mapping']
         components['mapping'] = lambda latents_in, labels_in: obj1(latents_in, labels_in, dlatent_size=dlatent_size, dlatent_broadcast=num_layers, **kwargs)

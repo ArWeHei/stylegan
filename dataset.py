@@ -61,7 +61,7 @@ class CelebA(DatasetMixin):
         assert img.shape == (218, 178, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
-        example = {'image':img/255 *2 -1, 'painted':False, 'feature_vec':features_vec}
+        example = {'image':img/255 *2 -1, 'painted':[False], 'feature_vec':features_vec}
         return example
 
 class PortraitsFromWikiArt(DatasetMixin):
@@ -95,5 +95,5 @@ class PortraitsFromWikiArt(DatasetMixin):
         assert img.shape == (218, 218, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
-        example = {'image':img/255 *2 -1, 'painted':True, 'feature_vec':features_vec}
+        example = {'image':img/255 *2 -1, 'painted':[True], 'feature_vec':features_vec}
         return example
