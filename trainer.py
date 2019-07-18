@@ -7,6 +7,8 @@ from edflow.hooks.checkpoint_hooks.tf_checkpoint_hook import CheckpointHook
 from edflow.util import pprint, retrieve
 from edflow.custom_logging import get_logger
 from edflow.project_manager import ProjectManager
+from edflow.tf_util import make_linear_var
+
 
 from .loss import G_logistic_nonsaturating, D_logistic
 
@@ -18,8 +20,6 @@ class ListTrainer(TFListTrainer):
         self.accuracy = 0.8
         self.alpha = 0.05
         self.win_rate = self.config.get("win_rate", .8)
-
-        self.define_connections()
 
         self.curr_phase = 'discr'
 
@@ -77,11 +77,12 @@ class ListTrainer(TFListTrainer):
                                        name='images_in')
 
 
-        lod_in = make_linear_var(self.global_step, 0*600000, 8*600000, 4, 4)\
-               - make_linear_var(self.global_step, 1*600000, 2*600000, 0, 1)\
-               - make_linear_var(self.global_step, 3*600000, 4*600000, 0, 1)\
-               - make_linear_var(self.global_step, 5*600000, 6*600000, 0, 1)\
-               - make_linear_var(self.global_step, 7*600000, 8*600000, 0, 1)
+        global_step = self._global_step_variable
+        lod_in = make_linear_var(global_step, 0*600000, 8*600000, 4, 4)\
+               - make_linear_var(global_step, 1*600000, 2*600000, 0, 1)\
+               - make_linear_var(global_step, 3*600000, 4*600000, 0, 1)\
+               - make_linear_var(global_step, 5*600000, 6*600000, 0, 1)\
+               - make_linear_var(global_step, 7*600000, 8*600000, 0, 1)
         
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
@@ -102,6 +103,8 @@ class ListTrainer(TFListTrainer):
         self.model.variables = tf.global_variables()
 
     def make_loss_ops(self):
+        self.define_connections()
+
         gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],

@@ -1,4 +1,5 @@
-dataset: stylegan.dataset.CelebAnPortraits_w_Noise
+#dataset: stylegan.dataset.CelebAnPortraits_w_Noise
+dataset: stylegan.dataset.CelebA_w_Noise
 model: stylegan.model.TrainModel
 iterator: stylegan.trainer.ListTrainer
 
