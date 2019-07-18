@@ -3,7 +3,7 @@ dataset: stylegan.dataset.CelebA_w_Noise
 model: stylegan.model.TrainModel
 iterator: stylegan.trainer.ListTrainer
 
-batch_size: 32
+batch_size: 16
 num_epochs: 1
 
 log_freq: 1000

@@ -84,6 +84,8 @@ class ListTrainer(TFListTrainer):
                - make_linear_var(global_step, 5*600000, 6*600000, 0, 1)\
                - make_linear_var(global_step, 7*600000, 8*600000, 0, 1)
         
+        self.log_ops['lod'] = lod_in
+
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
         fake_scores_out = self.model.discriminate(images_out, labels_in, lod_in)
@@ -110,8 +112,20 @@ class ListTrainer(TFListTrainer):
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
 
-        self.img_ops['fake'] = tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1])
-        self.img_ops['real'] = tf.transpose(self.model.inputs['image'], [0, 2, 3, 1])
+        #self.img_ops['fake'] = tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1])
+        self.img_ops['fake'] = tf.contrib.gan.eval.image_grid(
+                                    tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1]),
+                                    (4, 4),
+                                    image_shape=(128, 128),
+                                    num_channels=3
+                                )
+        #self.img_ops['real'] = tf.transpose(self.model.inputs['image'], [0, 2, 3, 1])
+        self.img_ops['real'] = tf.contrib.gan.eval.image_grid(
+                                    tf.transpose(self.model.inputs['image'], [0, 2, 3, 1]),
+                                    (4, 4),
+                                    image_shape=(128, 128),
+                                    num_channels=3
+                                )
         self.log_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
         self.log_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
         self.log_ops['losses/gen'] = tf.reduce_mean(gen_loss)
