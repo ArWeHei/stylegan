@@ -89,8 +89,8 @@ class generator(object):
         #self.images_out = self.network(self.latents_in, self.labels_in)
 
 
-    def __call__(self, latents_in, labels_in):
-        return self.network(latents_in, labels_in)
+    def __call__(self, latents_in, labels_in, lod_in):
+        return self.network(latents_in, labels_in, lod_in)
 
     @property
     def variables(self):
@@ -141,8 +141,8 @@ class discriminator(object):
         self.network = make_model(self.name, networks.D_basic, **self.kwargs)
         #self.scores_out = self.network(self.images_in, self.labels_in)
 
-    def __call__(self, images_in, labels_in):
-        return self.network(images_in, labels_in)
+    def __call__(self, images_in, labels_in, lod_in):
+        return self.network(images_in, labels_in, lod_in)
 
     @property
     def variables(self):
