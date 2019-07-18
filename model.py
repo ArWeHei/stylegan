@@ -161,8 +161,8 @@ class TrainModel(object):
             'discriminator':self.discriminator.variables,
                           }
 
-    def generate(self, latents_in, labels_in):
-        return self.generator(latents_in, labels_in)
+    def generate(self, latents_in, labels_in, lod_in):
+        return self.generator(latents_in, labels_in, lod_in)
 
-    def discriminate(self, images_in, labels_in):
-        return self.discriminator(images_in, labels_in)
+    def discriminate(self, images_in, labels_in, lod_in):
+        return self.discriminator(images_in, labels_in, lod_in)
