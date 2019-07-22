@@ -12,6 +12,7 @@ from edflow.tf_util import make_linear_var
 
 from .loss import G_logistic_nonsaturating, D_logistic
 from .misc import process_reals
+import stylegan.ops as ops
 
 import tensorflow as tf
 import numpy as np
