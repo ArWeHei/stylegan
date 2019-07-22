@@ -94,7 +94,7 @@ class ListTrainer(TFListTrainer):
 
         fake_scores_out = self.model.discriminate(images_out, labels_in, lod_in)
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
-        images_scaled = op.downscale2d(self.model.inputs['image'], factor=2**(lod+1))
+        images_scaled = op.downscale2d(images_in, factor=2**(lod+1))
 
         real_scores_out = self.model.discriminate(images_in, labels_in, lod_in)
 
