@@ -109,7 +109,6 @@ class ListTrainer(TFListTrainer):
             'latent':latents_in,
             'painted':labels_in,
             'image':images_in,
-            'scaled_image':images_scaled
             }
 
         self.model.variables = tf.global_variables()
