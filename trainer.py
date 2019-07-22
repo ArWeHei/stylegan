@@ -92,9 +92,9 @@ class ListTrainer(TFListTrainer):
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
         fake_scores_out = self.model.discriminate(images_out, labels_in, lod_in)
-        pprint(images_in)
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
-        pprint(images_in)
+        images_scaled = op.downscale2d(self.model.inputs['image'], factor=2**(lod+1))
+
         real_scores_out = self.model.discriminate(images_in, labels_in, lod_in)
 
         self.model.outputs = {'images_out': images_out}
@@ -105,7 +105,12 @@ class ListTrainer(TFListTrainer):
             }
 
         #self.model.inputs = {'latent':latents_in, 'feature_vec':labels_in, 'image':images_in}
-        self.model.inputs = {'latent':latents_in, 'painted':labels_in, 'image':images_in}
+        self.model.inputs = {
+            'latent':latents_in,
+            'painted':labels_in,
+            'image':images_in,
+            'scaled_image':images_scaled
+            }
 
         self.model.variables = tf.global_variables()
 
@@ -119,14 +124,15 @@ class ListTrainer(TFListTrainer):
 
         #self.img_ops['fake'] = tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1])
         self.img_ops['fake'] = tf.contrib.gan.eval.image_grid(
-                                    tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1]),
+                                    tf.transpose(self.model.outputs['image_out'], [0, 2, 3, 1]),
                                     (8, 4),
                                     image_shape=(128, 128),
                                     num_channels=3
                                 )
         #self.img_ops['real'] = tf.transpose(self.model.inputs['image'], [0, 2, 3, 1])
+
         self.img_ops['real'] = tf.contrib.gan.eval.image_grid(
-                                    tf.transpose(self.model.inputs['image'], [0, 2, 3, 1]),
+                                    tf.transpose(self.model.inputs['images_scaled'], [0, 2, 3, 1]),
                                     (8, 4),
                                     image_shape=(128, 128),
                                     num_channels=3
