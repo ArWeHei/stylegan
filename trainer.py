@@ -92,13 +92,12 @@ class ListTrainer(TFListTrainer):
 
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
-        fake_scores_out = self.model.discriminate(images_out, labels_in, lod_in)
+        fake_scores_out, _ = self.model.discriminate(images_out, labels_in, lod_in)
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
-        images_scaled = op.downscale2d(images_in, factor=2**(lod+1))
 
-        real_scores_out = self.model.discriminate(images_in, labels_in, lod_in)
+        real_scores_out, real_scaled = self.model.discriminate(images_in, labels_in, lod_in)
 
-        self.model.outputs = {'images_out': images_out}
+        self.model.outputs = {'images_out': images_out, 'scaled_images':real_scaled}
 
         self.model.scores = {
             'fake_scores_out': fake_scores_out,
@@ -133,7 +132,7 @@ class ListTrainer(TFListTrainer):
         #self.img_ops['real'] = tf.transpose(self.model.inputs['image'], [0, 2, 3, 1])
 
         self.img_ops['real'] = tf.contrib.gan.eval.image_grid(
-                                    tf.transpose(self.model.inputs['images_scaled'], [0, 2, 3, 1]),
+                                    tf.transpose(self.model.outputs['scaled_images'], [0, 2, 3, 1]),
                                     (8, 4),
                                     image_shape=(128, 128),
                                     num_channels=3

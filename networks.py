@@ -339,11 +339,13 @@ def D_basic(
         scores_out = block(x, 2)
 
     # Recursive structure: complex but efficient.
+    scaled_img = images_in
     if structure == 'recursive':
         def cset(cur_lambda, new_cond, new_lambda):
             return lambda: tf.cond(new_cond, new_lambda, cur_lambda)
         def grow(res, lod):
             x = lambda: fromrgb(ops.downscale2d(images_in, 2**lod), res)
+            scaled_img = ops.downscale2d(images_in, 2**lod)
             if lod > 0: x = cset(x, (lod_in < lod), lambda: grow(res + 1, lod - 1))
             x = block(x(), res); y = lambda: x
             if res > 2: y = cset(y, (lod_in > lod), lambda: util.lerp(x, fromrgb(ops.downscale2d(images_in, 2**(lod+1)), res - 1), lod_in - lod))
@@ -358,4 +360,4 @@ def D_basic(
 
     assert scores_out.dtype == tf.as_dtype(dtype)
     scores_out = tf.identity(scores_out, name='scores_out')
-    return scores_out
+    return scores_out, scaled_img
