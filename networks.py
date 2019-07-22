@@ -345,12 +345,17 @@ def D_basic(
             return lambda: tf.cond(new_cond, new_lambda, cur_lambda)
         def grow(res, lod):
             x = lambda: fromrgb(ops.downscale2d(images_in, 2**lod), res)
-            scaled_img = ops.downscale2d(images_in, 2**lod)
             if lod > 0: x = cset(x, (lod_in < lod), lambda: grow(res + 1, lod - 1))
             x = block(x(), res); y = lambda: x
             if res > 2: y = cset(y, (lod_in > lod), lambda: util.lerp(x, fromrgb(ops.downscale2d(images_in, 2**(lod+1)), res - 1), lod_in - lod))
             return y()
+        def d_scale(lod):
+            x = lambda: ops.downscale2d(images_in, 2**lod)
+            if lod > 0: x = cset(x, (lod_in < lod), lambda: d_scale(lod - 1))
+            y = cset(x, (lod_in > lod), lambda: util.lerp(x, ops.downscale2d(images_in, 2**(lod+1)), lod_in - lod))
+            return y()
         scores_out = grow(2, resolution_log2 - 2)
+        scaled_img = d_scale(resolution_log2 - 2)
 
     # Label conditioning from "Which Training Methods for GANs do actually Converge?"
     if label_size:
