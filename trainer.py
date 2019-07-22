@@ -11,7 +11,7 @@ from edflow.tf_util import make_linear_var
 
 
 from .loss import G_logistic_nonsaturating, D_logistic
-from .training.training_loop import process_reals
+from .misc import process_reals
 
 import tensorflow as tf
 import numpy as np
