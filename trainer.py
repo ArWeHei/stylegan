@@ -70,19 +70,19 @@ class ListTrainer(TFListTrainer):
         with tf.name_scope('placeholder'):
             dtype = self.config.get('dtype', tf.float32)
             latents_in = tf.placeholder(dtype=dtype,
-                                       shape=[None, None],
+                                       shape=[batch_size, None],
                                        name='latents_in')
             labels_in = tf.placeholder(dtype=dtype,
-                                       shape=[None, None],
+                                       shape=[batch_size, None],
                                        name='labels_in')
             images_in = tf.placeholder(dtype=dtype,
-                                       shape=[None, None, None, None],
+                                       shape=[batch_size, None, None, None],
                                        name='images_in')
 
 
         global_step = self._global_step_variable
         lod_in = make_linear_var(global_step, 0*600000, 8*600000, 4, 4)\
-               - make_linear_var(global_step, 1*600000, 2*600000, 0, 1)\
+               - make_linear_var(global_step, 0*600000, 2*600000, 0, 1)\
                - make_linear_var(global_step, 3*600000, 4*600000, 0, 1)\
                - make_linear_var(global_step, 5*600000, 6*600000, 0, 1)\
                - make_linear_var(global_step, 7*600000, 8*600000, 0, 1)
@@ -122,13 +122,13 @@ class ListTrainer(TFListTrainer):
                                     image_shape=(128, 128),
                                     num_channels=3
                                 )
-        #self.img_ops['real'] = tf.transpose(self.model.inputs['image'], [0, 2, 3, 1])
-        self.img_ops['real'] = tf.contrib.gan.eval.image_grid(
-                                    tf.transpose(self.model.inputs['image'], [0, 2, 3, 1]),
-                                    (4, 4),
-                                    image_shape=(128, 128),
-                                    num_channels=3
-                                )
+        self.img_ops['real'] = tf.transpose(self.model.inputs['image'], [0, 2, 3, 1])
+        #self.img_ops['real'] = tf.contrib.gan.eval.image_grid(
+        #                            tf.transpose(self.model.inputs['image'], [0, 2, 3, 1]),
+        #                            (4, 4),
+        #                            image_shape=(128, 128),
+        #                            num_channels=3
+        #                        )
         self.log_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
         self.log_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
         self.log_ops['losses/gen'] = tf.reduce_mean(gen_loss)

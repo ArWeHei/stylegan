@@ -4,7 +4,7 @@ model: stylegan.model.TrainModel
 iterator: stylegan.trainer.ListTrainer
 
 batch_size: 16
-num_epochs: 1
+num_epochs: 100
 
 log_freq: 1000
 ckpt_freq: 10000

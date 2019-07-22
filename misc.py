@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
+import stylegan.util as util
+
 #----------------------------------------------------------------------------
 # Just-in-time processing of training images before feeding them to the networks.
 
@@ -15,7 +17,7 @@ def process_reals(x, lod, mirror_augment, drange_data, drange_net):
     with tf.name_scope('ProcessReals'):
         with tf.name_scope('DynamicRange'):
             x = tf.cast(x, tf.float32)
-            x = misc.adjust_dynamic_range(x, drange_data, drange_net)
+            x = adjust_dynamic_range(x, drange_data, drange_net)
         if mirror_augment:
             with tf.name_scope('MirrorAugment'):
                 s = tf.shape(x)
@@ -28,7 +30,7 @@ def process_reals(x, lod, mirror_augment, drange_data, drange_net):
             y = tf.reduce_mean(y, axis=[3, 5], keepdims=True)
             y = tf.tile(y, [1, 1, 1, 2, 1, 2])
             y = tf.reshape(y, [-1, s[1], s[2], s[3]])
-            x = tflib.lerp(x, y, lod - tf.floor(lod))
+            x = util.lerp(x, y, lod - tf.floor(lod))
         with tf.name_scope('UpscaleLOD'): # Upscale to match the expected input/output size of the networks.
             s = tf.shape(x)
             factor = tf.cast(2 ** tf.floor(lod), tf.int32)
