@@ -1,9 +1,9 @@
-#dataset: stylegan.dataset.CelebAnPortraits_w_Noise
-dataset: stylegan.dataset.CelebA_w_Noise
+dataset: stylegan.dataset.CelebAnPortraits_w_Noise
+#dataset: stylegan.dataset.CelebA_w_Noise
 model: stylegan.model.TrainModel
 iterator: stylegan.trainer.ListTrainer
 
-batch_size: 16
+batch_size: 32
 num_epochs: 100
 
 log_freq: 1000
@@ -15,6 +15,6 @@ lr: 2.e-3
 lr_decay_begin : 10000 # TODO remove these in future versions
 lr_decay_end : 10000000000  # TODO remove these in future versions
 
-#label_size: 40
-label_size: 1
+label_size: 2
+#label_size: 1
 resolution: 128

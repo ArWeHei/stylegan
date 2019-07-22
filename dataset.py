@@ -72,22 +72,23 @@ class CelebA(DatasetMixin):
         img = np.asarray(PIL.Image.open(image_filepath))
         features = self.attributes_df.loc[image_filename,:].to_dict()
         features_vec = np.array([val for val in features.values()])
+        features_vec = []
         assert img.shape == (218, 178, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
-        example = {'image':img/255 *2 -1, 'painted':[False], 'feature_vec':features_vec, 'idx':idx}
+        example = {'image':img/255 *2 -1, 'painted':np.array([1, 0]), 'feature_vec':features_vec, 'idx':idx}
         return example
 
 class PortraitsFromWikiArt(DatasetMixin):
     #returns 128x128 images from WikiartsPortraits
     def __init__(self, config):
-        celeba_dir = config.get('wikiart_dir', './wikiart-dataset')
+        celeba_dir = config.get('wikiart_dir', './wikiart')
         self.logger = get_logger(self)
         self.logger.info('Loading portraits from "%s"' % celeba_dir)
         glob_pattern = os.path.join(celeba_dir, 'portrait_align', '*.jpg')
         self.image_filepaths = sorted(glob.glob(glob_pattern))
-        self.attributes_df = pd.read_csv(os.path.join(celeba_dir, 'wikiart.csv'), index_col='image_id')
-        expected_images = 202599
+        self.attributes_df = pd.read_csv(os.path.join(celeba_dir, 'wikiart.csv'), index_col='id', usecols=['id'])
+        expected_images = 784
         if len(self.image_filepaths) != expected_images:
             error('Expected to find %d images' % expected_images)
 
@@ -97,17 +98,18 @@ class PortraitsFromWikiArt(DatasetMixin):
     def __len__(self):
         return len(self.image_filepaths)
 
-
     def get_example(self, idx):
         cx=109; cy=94
         image_filepath = self.image_filepaths[idx]
         image_filename =  image_filepath.split('/')[-1]
+        image_filename =  image_filename.split('.')[0]
 
         img = np.asarray(PIL.Image.open(image_filepath))
-        features = self.attributes_df.loc[image_filename,:].to_dict()
-        features_vec = np.array([val for val in features.values()])
+        #features = self.attributes_df.loc[image_filename,:].to_dict()
+        #features_vec = np.array([val for val in features.values()])
+        features_vec = []
         assert img.shape == (218, 218, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
-        example = {'image':img/255 *2 -1, 'painted':[True], 'feature_vec':features_vec, 'idx':idx}
+        example = {'image':img/255 *2 -1, 'painted':np.array([0, 1]), 'feature_vec':features_vec, 'idx':idx}
         return example

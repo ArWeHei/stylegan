@@ -353,6 +353,7 @@ def D_basic(
     # Label conditioning from "Which Training Methods for GANs do actually Converge?"
     if label_size:
         with tf.variable_scope('LabelSwitch'):
+            #scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
             scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
 
     assert scores_out.dtype == tf.as_dtype(dtype)
