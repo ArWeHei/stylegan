@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 
 def CelebA_w_Noise(config):
-    p = lambda **kwargs: noise_process(config, **kwargs)
+    p = lambda **kwargs: noise(config, **kwargs)
     return ProcessedDataset(CelebA(config), p)
 
-def noise_process(config, **kwargs):
+def noise(config, **kwargs):
     latent_size = config.get('latent_size', 512) # Latent vector (Z) dimensionality.
     latents = np.random.randn(1, latent_size)
     return {'latent':latents[0], **kwargs}
@@ -22,12 +22,26 @@ def CelebAnPortraits(config):
     return ConcatenatedDataset(CelebA(config), PortraitsFromWikiArt(config))
 
 def CelebAnPortraits_w_Noise(config):
-    p = lambda **kwargs: noise_process(config, **kwargs)
+    p = lambda **kwargs: noise(config, **kwargs)
     return ProcessedDataset(CelebAnPortraits(config), p)
 
 @cachable('../CelebAnPortraits/cached/Dataset.zip')
 def CelebAnPortraitsCached(config):
     return CelebAnPortraits_w_Noise(config)
+
+def CelebAnPortraits_mirrored(config):
+    double_set = ConcatenatedDataset(CelebAnPortraits(config), CelebAnPortraits(config))
+    p = lambda **kwargs: mirror(config, double_set, **kwargs)
+    return ProcessedDataset(double_set, p)
+
+def mirror(config, dataset, **kwargs):
+    arg = config.get('mirror_arg', image)
+    doubled_len = len(dataset)
+    if kwargs['idx'] >= int(doubled_len/2):
+        kwargs['arg'] = np.flip(kwargs['arg'], 2)
+    return kwargs
+
+
 
 
 class CelebA(DatasetMixin):
@@ -61,7 +75,7 @@ class CelebA(DatasetMixin):
         assert img.shape == (218, 178, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
-        example = {'image':img/255 *2 -1, 'painted':[False], 'feature_vec':features_vec}
+        example = {'image':img/255 *2 -1, 'painted':[False], 'feature_vec':features_vec, idx=idx}
         return example
 
 class PortraitsFromWikiArt(DatasetMixin):
@@ -95,5 +109,5 @@ class PortraitsFromWikiArt(DatasetMixin):
         assert img.shape == (218, 218, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
-        example = {'image':img/255 *2 -1, 'painted':[True], 'feature_vec':features_vec}
+        example = {'image':img/255 *2 -1, 'painted':[True], 'feature_vec':features_vec, idx=idx}
         return example

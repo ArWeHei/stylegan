@@ -11,6 +11,7 @@ from edflow.tf_util import make_linear_var
 
 
 from .loss import G_logistic_nonsaturating, D_logistic
+from .training.training_loop import process_reals
 
 import tensorflow as tf
 import numpy as np
@@ -63,6 +64,8 @@ class ListTrainer(TFListTrainer):
 
     def define_connections(self):
         batch_size = self.config["batch_size"]
+        mirror_augment = self.config.get('mirror_augment', True)
+        drange_net = self.config.get('drange_net', [-1, 1])
 
         with tf.name_scope('placeholder'):
             dtype = self.config.get('dtype', tf.float32)
@@ -89,8 +92,8 @@ class ListTrainer(TFListTrainer):
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
         fake_scores_out = self.model.discriminate(images_out, labels_in, lod_in)
+        images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
         real_scores_out = self.model.discriminate(images_in, labels_in, lod_in)
-
 
         self.model.outputs = {'images_out': images_out}
 
