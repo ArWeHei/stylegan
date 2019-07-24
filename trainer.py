@@ -30,6 +30,7 @@ class ListTrainer(TFListTrainer):
         self.log_ops = dict()
         self.img_ops = dict()
         self.hist_ops = dict()
+        self.s_ops = dict()
         self.update_ops = list()
         self.create_train_op()
 
@@ -43,25 +44,25 @@ class ListTrainer(TFListTrainer):
             )
         self.hooks.append(ckpt_hook)
 
-        loghook = LoggingHook(
-            histograms=self.hist_ops,
-            logs=self.log_ops,
-            scalars=self.log_ops,
-            images=self.img_ops,
-            root_path=ProjectManager.train,
-            interval=1,
-            log_images_to_tensorboard=self.config.get(
-                "log_images_to_tensorboard", False
-                ),
-            )
-        ihook = IntervalHook(
-            [loghook],
-            interval=self.config.get("start_log_freq", 1),
-            modify_each=1,
-            max_interval=self.config.get("log_freq", 1000),
-            get_step=self.get_global_step,
-                )
-        self.hooks.append(ihook)
+#        loghook = LoggingHook(
+#            histograms=self.hist_ops,
+#            logs=self.log_ops,
+#            scalars=self.log_ops,
+#            images=self.img_ops,
+#            root_path=ProjectManager.train,
+#            interval=1,
+#            log_images_to_tensorboard=self.config.get(
+#                "log_images_to_tensorboard", False
+#                ),
+#            )
+#        ihook = IntervalHook(
+#            [loghook],
+#            interval=self.config.get("start_log_freq", 1),
+#            modify_each=1,
+#            max_interval=self.config.get("log_freq", 1000),
+#            get_step=self.get_global_step,
+#                )
+#        self.hooks.append(ihook)
 
         loghook = CustomTFScalarLoggingHook(
             scalars = self.s_ops,
