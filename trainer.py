@@ -91,11 +91,11 @@ class ListTrainer(TFListTrainer):
 
 
         global_step = self._global_step_variable * batch_size
-        lod_in = make_linear_var(global_step, 0*600000, 9*600000, 4, 4)\
-               - make_linear_var(global_step, 1*600000, 2*600000, 0, 1)\
-               - make_linear_var(global_step, 4*600000, 5*600000, 0, 1)\
-               - make_linear_var(global_step, 7*600000, 9*600000, 0, 1)\
-               - make_linear_var(global_step, 11*600000, 13*600000, 0, 1)
+        lod_in = make_linear_var(global_step, 0*600000, 30*600000, 4, 4)\
+               - make_linear_var(global_step, 2*600000, 4*600000, 0, 1)\
+               - make_linear_var(global_step, 8*600000, 12*600000, 0, 1)\
+               - make_linear_var(global_step, 16*600000, 20*600000, 0, 1)\
+               - make_linear_var(global_step, 24*600000, 28*600000, 0, 1)
         
         self.log_ops['lod'] = lod_in
 
@@ -132,7 +132,7 @@ class ListTrainer(TFListTrainer):
 
         #self.img_ops['fake'] = tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1])
         self.img_ops['fake'] = tf.contrib.gan.eval.image_grid(
-                                    tf.transpose(self.model.outputs['image_out'], [0, 2, 3, 1]),
+                                    tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1]),
                                     (8, 4),
                                     image_shape=(128, 128),
                                     num_channels=3

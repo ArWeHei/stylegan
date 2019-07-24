@@ -19,7 +19,8 @@ def noise(config, **kwargs):
     return {'latent':latents[0], **kwargs}
 
 def CelebAnPortraits(config):
-    return ConcatenatedDataset(CelebA(config), PortraitsFromWikiArt(config))
+    balanced = config.get('balanced_datasets', False)
+    return ConcatenatedDataset(CelebA(config), PortraitsFromWikiArt(config), balanced=balanced)
 
 def CelebAnPortraits_w_Noise(config):
     p = lambda **kwargs: noise(config, **kwargs)
@@ -82,15 +83,15 @@ class CelebA(DatasetMixin):
 class PortraitsFromWikiArt(DatasetMixin):
     #returns 128x128 images from WikiartsPortraits
     def __init__(self, config):
-        celeba_dir = config.get('wikiart_dir', './wikiart')
+        celeba_dir = config.get('wikiart_dir', './artworks')
         self.logger = get_logger(self)
         self.logger.info('Loading portraits from "%s"' % celeba_dir)
         glob_pattern = os.path.join(celeba_dir, 'portrait_align', '*.jpg')
         self.image_filepaths = sorted(glob.glob(glob_pattern))
-        self.attributes_df = pd.read_csv(os.path.join(celeba_dir, 'wikiart.csv'), index_col='id', usecols=['id'])
+        #self.attributes_df = pd.read_csv(os.path.join(celeba_dir, 'wikiart.csv'), index_col='id', usecols=['id'])
         expected_images = 784
-        if len(self.image_filepaths) != expected_images:
-            error('Expected to find %d images' % expected_images)
+        #if len(self.image_filepaths) != expected_images:
+            #error('Expected to find %d images' % expected_images)
 
     def __name__(self):
         return "WikiArtPortraits"

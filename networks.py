@@ -158,8 +158,6 @@ def G_synthesis(
     structure           = 'recursive',       # 'fixed' = no progressive growing, 'linear' = human-readable, 'recursive' = efficient, 'auto' = select automatically.
     **kwargs):                          # Ignore unrecognized keyword args.
 
-    pprint(resolution)
-    
     resolution_log2 = int(np.log2(resolution))
     assert resolution == 2**resolution_log2 and resolution >= 4
 
@@ -350,10 +348,11 @@ def D_basic(
             if res > 2: y = cset(y, (lod_in > lod), lambda: util.lerp(x, fromrgb(ops.downscale2d(images_in, 2**(lod+1)), res - 1), lod_in - lod))
             return y()
         def d_scale(lod):
-            x = lambda: ops.downscale2d(images_in, 2**lod)
+            x = lambda: ops.upscale2d(ops.downscale2d(images_in, 2**lod), 2**lod)
             if lod > 0: x = cset(x, (lod_in < lod), lambda: d_scale(lod - 1))
-            y = cset(x, (lod_in > lod), lambda: util.lerp(x, ops.downscale2d(images_in, 2**(lod+1)), lod_in - lod))
+            y = cset(x, (lod_in > lod), lambda: util.lerp(x(), ops.upscale2d(ops.downscale2d(images_in, 2**(lod+1)), 2**(lod+1)), lod_in - lod))
             return y()
+
         scores_out = grow(2, resolution_log2 - 2)
         scaled_img = d_scale(resolution_log2 - 2)
 
