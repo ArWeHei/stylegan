@@ -10,19 +10,13 @@ from edflow.custom_logging import get_logger
 
 from tensorboardX import SummaryWriter
 
-class CustomTFScalarLoggingHook(Hook):
-    """Supply and evaluate logging ops at an intervall of training steps."""
-    # do this differently:
-    #   start of with ops a.k.a. tensors that are added to the feed dict
-    #   after the run the result is retrieved and processed, i.e. square the value, save number of results etc.
-    #   save the result in an attribute
-    #   when interval is reached, write down the data using tensorboardX
-
+class MarginPlottingHook(Hook):
     def __init__(
         self,
         scalars={},
         interval=100,
         root_path="logs",
+        summary_writer=None
     ):
         """Args:
             scalars (dict): Scalar ops.
@@ -37,9 +31,11 @@ class CustomTFScalarLoggingHook(Hook):
 
         self.root = root_path
         self.logger = get_logger(self)
-        self.tb_logger = SummaryWriter(root_path)
+        if summary_writer is None:
+            self.tb_logger = SummaryWriter(root_path)
+        else:
+            self.tb_logger = summary_writer
 
-        #self.fetch_dict = {"custom_scalars": scalars}
         self.results_log = {key:[] for key in self.keys()}
 
         self.tb_logger.add_custom_scalars_marginchart([key+'_mean', key+'+std', key+'-std'])
@@ -65,6 +61,38 @@ class CustomTFScalarLoggingHook(Hook):
                 self.tb_logger.add_scalar(key+'-std', m-s, step)
                 self.logger.info(f"{name}: {m} ± {s}")
 
+
+class ImageLoggingHook(Hook):
+    def __init__(
+        self,
+        images={},
+        interval=100,
+        root_path="logs",
+    ):
+
+        self.images = images
+        self.keys = list(images.keys())
+        self.interval = interval
+
+        self.root = root_path
+        self.logger = get_logger(self)
+        if summary_writer is None:
+            self.tb_logger = SummaryWriter(root_path)
+        else:
+            self.tb_logger = summary_writer
+
+
+    def before_step(self, batch_index, fetches, feeds, batch):
+        if batch_index % self.interval == 0:
+            fetches["images"] = self.images
+
+
+    def after_step(self, batch_index, last_results):
+        if batch_index % self.interval == 0:
+            step = last_results["global_step"]
+            last_results = last_results["images"]
+            for (key, value) in last_results.items():
+                self.tb_logger.add_image(key, value, step)
 
 #class LODHook(Hook):
 
