@@ -12,6 +12,7 @@ from edflow.tf_util import make_linear_var
 
 from .loss import G_logistic_nonsaturating, D_logistic
 from .misc import process_reals
+from .hooks import CustomTFScalarLoggingHook
 import stylegan.ops as op
 
 import tensorflow as tf
@@ -61,6 +62,14 @@ class ListTrainer(TFListTrainer):
             get_step=self.get_global_step,
                 )
         self.hooks.append(ihook)
+
+        loghook = CustomTFScalarLoggingHook(
+            scalars = self.s_ops,
+            interval = self.config.get("log_freq", 1000),
+            root_path=ProjectManager.train,
+            )
+        self.hooks.append(loghook)
+
 
 
     def define_connections(self):
@@ -140,6 +149,8 @@ class ListTrainer(TFListTrainer):
         self.log_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
         self.log_ops['losses/gen'] = tf.reduce_mean(gen_loss)
         self.log_ops['losses/discr'] = tf.reduce_mean(discr_loss)
+        self.s_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
+        self.s_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
 
         losses = []
         losses.append({"generator": gen_loss})
