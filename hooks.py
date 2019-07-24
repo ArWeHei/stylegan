@@ -7,6 +7,7 @@ import sys
 
 from edflow.hooks.hook import Hook
 from edflow.custom_logging import get_logger
+from edflow.util import linear_var
 
 from tensorboardX import SummaryWriter
 
@@ -94,5 +95,43 @@ class ImageLoggingHook(Hook):
             for (key, value) in last_results.items():
                 self.tb_logger.add_image(key, value, step)
 
-#class LODHook(Hook):
+
+class LODHook(Hook):
+    def __init__(
+        self,
+        schedule={
+            4:[       0,  1000000],
+            3:[ 2000000,  4000000],
+            2:[ 8000000, 12000000],
+            1:[16000000, 20000000],
+            0:[24000000, 28000000],
+        },
+    ):
+        self.interval = check_interval
+        self.schedule = schedule
+        tmp = [[k, x] for x in l for k, l in schedule.items()]
+        self.reduced_schedule = np.array(tmp).T
+
+        self.step = 0
+
+
+    def get_lod_from_step(self, step):
+        idx = np.digitize(np.array([step]), self.reduced_schedule[1])
+        lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, i+1]
+        start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, i+1]
+        curr_lod = linear_var(step, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
+        return curr_lod
+            
+
+    def before_step(self, batch_index, fetches, feeds, batch):
+        pprint(batch)
+        pprint(feeds)
+        batch['lod'] = get_lod_from_step(self.step)
+
+
+    def after_step(self, batch_index, last_results):
+        self.step = last_results["global_step"]
+            last_results = last_results["images"]
+            for (key, value) in last_results.items():
+                self.tb_logger.add_image(key, value, step)
 

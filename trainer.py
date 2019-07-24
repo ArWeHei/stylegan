@@ -74,24 +74,27 @@ class ListTrainer(TFListTrainer):
         with tf.name_scope('placeholder'):
             dtype = self.config.get('dtype', tf.float32)
             latents_in = tf.placeholder(dtype=dtype,
-                                       shape=[batch_size, None],
-                                       name='latents_in')
+                                        shape=[batch_size, None],
+                                        name='latents_in')
             labels_in = tf.placeholder(dtype=dtype,
                                        shape=[batch_size, None],
                                        name='labels_in')
             images_in = tf.placeholder(dtype=dtype,
                                        shape=[batch_size, None, None, None],
                                        name='images_in')
+            lod_in = tf.placeholder(dtype=dtype,
+                                    shape=[1],
+                                    name='lod_in')
 
 
         global_step = self._global_step_variable * batch_size
-        lod_in = make_linear_var(global_step, 0*600000, 30*600000, 4, 4)\
-               - make_linear_var(global_step, 2*600000, 4*600000, 0, 1)\
-               - make_linear_var(global_step, 8*600000, 12*600000, 0, 1)\
-               - make_linear_var(global_step, 16*600000, 20*600000, 0, 1)\
-               - make_linear_var(global_step, 24*600000, 28*600000, 0, 1)
+        #lod_in = make_linear_var(global_step, 0*600000, 30*600000, 4, 4)\
+        #       - make_linear_var(global_step, 2*600000, 4*600000, 0, 1)\
+        #       - make_linear_var(global_step, 8*600000, 12*600000, 0, 1)\
+        #       - make_linear_var(global_step, 16*600000, 20*600000, 0, 1)\
+        #       - make_linear_var(global_step, 24*600000, 28*600000, 0, 1)
         
-        self.log_ops['lod'] = lod_in
+        self.s_ops['lod'] = lod_in
 
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
@@ -112,6 +115,7 @@ class ListTrainer(TFListTrainer):
             'latent':latents_in,
             'painted':labels_in,
             'image':images_in,
+            'lod':lod_in
             }
 
         self.model.variables = tf.global_variables()
