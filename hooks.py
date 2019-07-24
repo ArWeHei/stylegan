@@ -108,6 +108,7 @@ class ImageLoggingHook(Hook):
 class LODHook(Hook):
     def __init__(
         self,
+        placeholder,
         schedule={
             4:[       0,  1000000],
             3:[ 2000000,  4000000],
@@ -116,26 +117,26 @@ class LODHook(Hook):
             0:[24000000, 28000000],
         },
     ):
-        self.interval = check_interval
         self.schedule = schedule
-        tmp = [[k, x] for x in l for k, l in schedule.items()]
+        tmp = [[k, x] for (k, l) in schedule.items() for x in l]
         self.reduced_schedule = np.array(tmp).T
 
         self.step = 0
 
+        self.pl = placeholder
+
 
     def get_lod_from_step(self, step):
         idx = np.digitize(np.array([step]), self.reduced_schedule[1])
-        lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, i+1]
-        start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, i+1]
+        lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, idx+1]
+        start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, idx+1]
         curr_lod = linear_var(step, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
         return curr_lod
             
 
     def before_step(self, batch_index, fetches, feeds, batch):
-        pprint(batch)
-        pprint(feeds)
-        batch['lod'] = get_lod_from_step(self.step)
+        batch['lod'] = self.get_lod_from_step(self.step)
+        feeds[self.pl] = self.get_lod_from_step(self.step)
 
 
     def after_step(self, batch_index, last_results):

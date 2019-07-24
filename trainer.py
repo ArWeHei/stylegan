@@ -12,7 +12,7 @@ from edflow.tf_util import make_linear_var
 
 from .loss import G_logistic_nonsaturating, D_logistic
 from .misc import process_reals
-from .hooks import MarginPlottingHook, ImageLoggingHook
+from .hooks import *
 import stylegan.ops as op
 
 import tensorflow as tf
@@ -48,6 +48,9 @@ class ListTrainer(TFListTrainer):
             )
         self.hooks.append(ckpt_hook)
 
+        lodhook = LODHook(self.lod_in)
+        self.hooks.append(lodhook)
+
         loghook = MarginPlottingHook(
             scalars = self.s_ops,
             interval = self.config.get("log_freq", 1000),
@@ -63,8 +66,6 @@ class ListTrainer(TFListTrainer):
             summary_writer = tb_writer,
             )
         self.hooks.append(imghook)
-
-
 
 
     def define_connections(self):
@@ -84,7 +85,7 @@ class ListTrainer(TFListTrainer):
                                        shape=[batch_size, None, None, None],
                                        name='images_in')
             lod_in = tf.placeholder(dtype=dtype,
-                                    shape=[1],
+                                    shape=[],
                                     name='lod_in')
 
 
@@ -96,6 +97,7 @@ class ListTrainer(TFListTrainer):
         #       - make_linear_var(global_step, 24*600000, 28*600000, 0, 1)
         
         self.s_ops['lod'] = lod_in
+        self.lod_in = lod_in
 
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
