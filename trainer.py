@@ -12,11 +12,13 @@ from edflow.tf_util import make_linear_var
 
 from .loss import G_logistic_nonsaturating, D_logistic
 from .misc import process_reals
-from .hooks import CustomTFScalarLoggingHook
+from .hooks import MarginPlottingHook, ImageLoggingHook
 import stylegan.ops as op
 
 import tensorflow as tf
 import numpy as np
+
+from tensorboardX import SummaryWriter
 
 class ListTrainer(TFListTrainer):
     def setup(self):
@@ -34,6 +36,8 @@ class ListTrainer(TFListTrainer):
         self.update_ops = list()
         self.create_train_op()
 
+        tb_writer = SummaryWriter(ProjectManager.train)
+
         ckpt_hook = CheckpointHook(
             root_path=ProjectManager.checkpoints,
             variables=self.get_checkpoint_variables(),
@@ -44,32 +48,22 @@ class ListTrainer(TFListTrainer):
             )
         self.hooks.append(ckpt_hook)
 
-#        loghook = LoggingHook(
-#            histograms=self.hist_ops,
-#            logs=self.log_ops,
-#            scalars=self.log_ops,
-#            images=self.img_ops,
-#            root_path=ProjectManager.train,
-#            interval=1,
-#            log_images_to_tensorboard=self.config.get(
-#                "log_images_to_tensorboard", False
-#                ),
-#            )
-#        ihook = IntervalHook(
-#            [loghook],
-#            interval=self.config.get("start_log_freq", 1),
-#            modify_each=1,
-#            max_interval=self.config.get("log_freq", 1000),
-#            get_step=self.get_global_step,
-#                )
-#        self.hooks.append(ihook)
-
-        loghook = CustomTFScalarLoggingHook(
+        loghook = MarginPlottingHook(
             scalars = self.s_ops,
             interval = self.config.get("log_freq", 1000),
             root_path=ProjectManager.train,
+            summary_writer = tb_writer,
             )
         self.hooks.append(loghook)
+
+        imghook = ImageLoggingHook(
+            images = self.img_ops,
+            interval = self.config.get("log_freq", 1000),
+            root_path=ProjectManager.train,
+            summary_writer = tb_writer,
+            )
+        self.hooks.append(imghook)
+
 
 
 
@@ -81,24 +75,27 @@ class ListTrainer(TFListTrainer):
         with tf.name_scope('placeholder'):
             dtype = self.config.get('dtype', tf.float32)
             latents_in = tf.placeholder(dtype=dtype,
-                                       shape=[batch_size, None],
-                                       name='latents_in')
+                                        shape=[batch_size, None],
+                                        name='latents_in')
             labels_in = tf.placeholder(dtype=dtype,
                                        shape=[batch_size, None],
                                        name='labels_in')
             images_in = tf.placeholder(dtype=dtype,
                                        shape=[batch_size, None, None, None],
                                        name='images_in')
+            lod_in = tf.placeholder(dtype=dtype,
+                                    shape=[1],
+                                    name='lod_in')
 
 
         global_step = self._global_step_variable * batch_size
-        lod_in = make_linear_var(global_step, 0*600000, 30*600000, 4, 4)\
-               - make_linear_var(global_step, 2*600000, 4*600000, 0, 1)\
-               - make_linear_var(global_step, 8*600000, 12*600000, 0, 1)\
-               - make_linear_var(global_step, 16*600000, 20*600000, 0, 1)\
-               - make_linear_var(global_step, 24*600000, 28*600000, 0, 1)
+        #lod_in = make_linear_var(global_step, 0*600000, 30*600000, 4, 4)\
+        #       - make_linear_var(global_step, 2*600000, 4*600000, 0, 1)\
+        #       - make_linear_var(global_step, 8*600000, 12*600000, 0, 1)\
+        #       - make_linear_var(global_step, 16*600000, 20*600000, 0, 1)\
+        #       - make_linear_var(global_step, 24*600000, 28*600000, 0, 1)
         
-        self.log_ops['lod'] = lod_in
+        self.s_ops['lod'] = lod_in
 
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
@@ -119,6 +116,7 @@ class ListTrainer(TFListTrainer):
             'latent':latents_in,
             'painted':labels_in,
             'image':images_in,
+            'lod':lod_in
             }
 
         self.model.variables = tf.global_variables()
@@ -131,25 +129,11 @@ class ListTrainer(TFListTrainer):
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
 
-        #self.img_ops['fake'] = tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1])
-        self.img_ops['fake'] = tf.contrib.gan.eval.image_grid(
-                                    tf.transpose(self.model.outputs['images_out'], [0, 2, 3, 1]),
-                                    (8, 4),
-                                    image_shape=(128, 128),
-                                    num_channels=3
-                                )
-        #self.img_ops['real'] = tf.transpose(self.model.inputs['image'], [0, 2, 3, 1])
+        self.img_ops['fake'] = self.model.outputs['images_out']
+        self.img_ops['real'] = self.model.outputs['scaled_images']
 
-        self.img_ops['real'] = tf.contrib.gan.eval.image_grid(
-                                    tf.transpose(self.model.outputs['scaled_images'], [0, 2, 3, 1]),
-                                    (8, 4),
-                                    image_shape=(128, 128),
-                                    num_channels=3
-                                )
-        self.log_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
-        self.log_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
-        self.log_ops['losses/gen'] = tf.reduce_mean(gen_loss)
-        self.log_ops['losses/discr'] = tf.reduce_mean(discr_loss)
+        self.s_ops['losses/gen'] = tf.reduce_mean(gen_loss)
+        self.s_ops['losses/discr'] = tf.reduce_mean(discr_loss)
         self.s_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
         self.s_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
 
