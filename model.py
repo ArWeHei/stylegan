@@ -159,10 +159,15 @@ class TrainModel(object):
         self.variables = {
             'generator':self.generator.variables,
             'discriminator':self.discriminator.variables,
-                          }
+            'both':self.all_variables,
+        }
 
     def generate(self, latents_in, labels_in, lod_in):
         return self.generator(latents_in, labels_in, lod_in)
 
     def discriminate(self, images_in, labels_in, lod_in):
         return self.discriminator(images_in, labels_in, lod_in)
+
+    @property
+    def all_variables(self):
+        return  [v for v in tf.global_variables()]

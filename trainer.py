@@ -152,12 +152,14 @@ class ListTrainer(TFListTrainer):
 
         self.s_ops['losses/gen'] = tf.reduce_mean(gen_loss)
         self.s_ops['losses/discr'] = tf.reduce_mean(discr_loss)
+        self.s_ops['losses/both'] = tf.reduce_mean(gen_loss+discr_loss)
         self.s_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
         self.s_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
 
         losses = []
         losses.append({"generator": gen_loss})
         losses.append({"discriminator": discr_loss})
+        losses.append({"both": gen_loss+discr_loss})
         
         return losses
 
@@ -168,41 +170,28 @@ class ListTrainer(TFListTrainer):
         #pprint(result)
         return result
 
-    #def run(self, fetches, feed_dict):
-    #    if self.curr_phase == 'discr':
-    #        adj = 0.05
-    #    else:
-    #        adj = -0.05
-    #    adj_win_rate = self.win_rate + adj
+    def run(self, fetches, feed_dict):
+        #decide in run when to switch optimizers
+        if self.Dloss/self.Gloss > 2:
+            train_idx = 0
+            fetches["g_steps"] = self.gen_steps
+            self.curr_phase = 'gen'
+        if self.Gloss/self.Dloss > 2:
+            train_idx = 1
+            fetches["d_steps"] = self.discr_steps
+            self.curr_phase = 'discr'
+        else:
+            train_idx = 2
+            fetches["g_steps"] = self.gen_steps
+            fetches["d_steps"] = self.discr_steps
+            self.curr_phase = 'both'
 
-    #    #decide in run when to switch optimizers
-    #    if self.DSloss > self.DSloss_clip:
-    #        train_idx = 0
-    #        fetches["gen_steps"] = self.gen_steps
-    #        self.curr_phase = 'gen'
-    #        self.current_min_loss = self.min_DSloss
-    #    elif self.accuracy >= adj_win_rate:
-    #        train_idx = 0
-    #        fetches["gen_steps"] = self.gen_steps
-    #        self.curr_phase = 'gen'
-    #        self.DSloss_clip = self.max_DSloss
-    #    else:
-    #        train_idx = 1
-    #        fetches["discr_steps"] = self.discr_steps
-    #        self.curr_phase = 'discr'
-    #        self.DSloss_clip = self.max_DSloss
+        fetches["step_ops"] = self.all_train_ops[train_idx]
 
-    #    fetches["step_ops"] = self.all_train_ops[train_idx]
-    #    fetches["accuracy"] = self.acc
-    #    fetches["DSloss"] = self.DSloss_op
+        tmp = super(TFListTrainer, self).run(fetches, feed_dict)
 
-    #    tmp = super(TFListTrainer, self).run(fetches, feed_dict)
+        self.Gloss = tmp["custom_scalars"]["losses/gen"]
+        self.Dloss = tmp["custom_scalars"]["losses/discr"]
 
-    #    self.accuracy = self.accuracy * (1. - self.alpha) + self.alpha * tmp["accuracy"]
-    #    self.DSloss = tmp["DSloss"]
-
-    #    #for logging
-    #    tmp['acc'] = {'smoothed_acc': self.accuracy}
-
-    #    return tmp
+        return tmp
 
