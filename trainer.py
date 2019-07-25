@@ -49,6 +49,7 @@ class ListTrainer(TFListTrainer):
         self.hooks.append(ckpt_hook)
 
         lodhook = scoreLODHook(self.lod_in,
+                scalars = {k:v for k, v in self.s_ops.items() if k in ['scores/real', 'scores/fake']},
             #schedule={
             #    4:[     0,  15000],
             #    3:[ 30000,  45000],
