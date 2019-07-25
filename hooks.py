@@ -125,10 +125,12 @@ class LODHook(Hook):
         self.step = 0
 
         self.pl = placeholder
+        self.logger = get_logger(self)
+        self.logger.info(self.reduced_schedule)
 
 
     def get_lod_from_step(self, step):
-        idx = np.digitize(np.array([step]), self.reduced_schedule[1])
+        idx = np.digitize(np.array([step]), self.reduced_schedule[1])-1
         lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, idx+1]
         start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, idx+1]
         curr_lod = linear_var(step, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
@@ -142,3 +144,49 @@ class LODHook(Hook):
 
     def after_step(self, batch_index, last_results):
         self.step = last_results["global_step"]
+
+
+class scoreLODHook(Hook):
+    def __init__(
+        self,
+        placeholder,
+        schedule={
+            4:[10., 1.0],
+            3:[.75, .50],
+            2:[.35, .25],
+            1:[.15, .10],
+            0:[.05, 0.0],
+        },
+    ):
+        self.schedule = schedule
+        tmp = [[k, x] for (k, l) in schedule.items() for x in l]
+        self.reduced_schedule = np.array(tmp).T
+
+        self.score = 0
+
+        self.pl = placeholder
+        self.logger = get_logger(self)
+        self.logger.info(self.reduced_schedule)
+
+
+    def get_lod_from_score(self, score):
+        idx = np.digitize(np.array([score]), self.reduced_schedule[1])-1
+        lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, idx+1]
+        start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, idx+1]
+        curr_lod = linear_var(score, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
+        return curr_lod
+            
+
+    def before_step(self, batch_index, fetches, feeds, batch):
+        #batch['lod'] = self.get_lod_from_score(self.score)
+        feeds[self.pl] = self.get_lod_from_score(self.score)
+
+
+    def after_step(self, batch_index, last_results):
+        step = last_results["global_step"]
+        if step < 100:
+            self.score = 5
+        else:
+            pos_score = last_results["custom_scalars"]["scores/real"]
+            neg_score = -last_results["custom_scalars"]["scores/fake"]
+            self.score = (pos_score+neg_score)/2

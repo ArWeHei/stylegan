@@ -48,15 +48,15 @@ class ListTrainer(TFListTrainer):
             )
         self.hooks.append(ckpt_hook)
 
-        lodhook = LODHook(self.lod_in,
-            schedule={
-                4:[     0,  15000],
-                3:[ 30000,  45000],
-                2:[ 60000,  75000],
-                1:[ 90000, 105000],
-                0:[120000,1000000],
-            },
-                )
+        lodhook = scoreLODHook(self.lod_in,
+            #schedule={
+            #    4:[     0,  15000],
+            #    3:[ 30000,  45000],
+            #    2:[ 60000,  75000],
+            #    1:[ 90000, 105000],
+            #    0:[120000,1000000],
+            #},
+        )
         self.hooks.append(lodhook)
 
         loghook = MarginPlottingHook(
