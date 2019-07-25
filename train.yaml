@@ -6,7 +6,7 @@ iterator: stylegan.trainer.ListTrainer
 wikiart_dir: './artworks'
 
 batch_size: 32
-num_epochs: 100
+num_steps: 1000000
 
 log_freq: 1000
 ckpt_freq: 10000
@@ -14,8 +14,8 @@ ckpt_keep: 1
 log_images_to_tensorboard: True
 
 lr: 1.5e-3
-lr_decay_begin : 10000000000 # TODO remove these in future versions
-lr_decay_end : 10000000000000  # TODO remove these in future versions
+lr_decay_begin : 1000000 # TODO remove these in future versions
+lr_decay_end : 1000000  # TODO remove these in future versions
 
 label_size: 2
 #label_size: 1
