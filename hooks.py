@@ -107,6 +107,40 @@ class ImageLoggingHook(Hook):
                 self.tb_logger.add_images(key, (value+1)/2, step, dataformats='NCHW')
 
 
+class ImageEvalHook(Hook):
+    def __init__(
+        self,
+        images={},
+        interval=1000,
+        root_path="logs",
+        summary_writer=None
+    ):
+
+        self.images = images
+        self.keys = list(images.keys())
+        self.interval = interval
+
+        self.root = root_path
+        self.logger = get_logger(self)
+        if summary_writer is None:
+            self.tb_logger = SummaryWriter(root_path)
+        else:
+            self.tb_logger = summary_writer
+
+
+    def before_step(self, batch_index, fetches, feeds, batch):
+        if batch_index % self.interval == 0:
+            fetches["images"] = self.images
+
+
+    def after_step(self, batch_index, last_results):
+        if batch_index % self.interval == 0:
+            step = last_results["global_step"]
+            last_results = last_results["images"]
+            for (key, value) in last_results.items():
+                self.tb_logger.add_images(key, (value+1)/2, step, dataformats='NCHW')
+
+
 class LODHook(Hook):
     def __init__(
         self,
@@ -171,7 +205,7 @@ class scoreLODHook(Hook):
 
         self.logger = get_logger(self)
 
-        self.results_log = {key:np.full(interval, 10) for key in self.keys} #have a high initial value that drive the mean up
+        self.results_log = {key:[] for key in self.keys} #have a high initial value that drive the mean up
         self.scores = [10, 10]
 
         self.pl = placeholder
@@ -196,9 +230,12 @@ class scoreLODHook(Hook):
     def after_step(self, batch_index, last_results):
         step = last_results["global_step"]
         results = last_results["scoreLOD"]
+        self.scores = []
 
         for (key, value) in results.items():
-            self.results_log[key] = self.results_log[key][1:] + [value]
+            self.results_log[key] += [value]
+            if len(self.results_log[key]) >= self.interval:
+                self.results_log[key] = self.results_log[keys][1:]
             self.scores.append(np.absolute(np.mean(self.results_log[key])))
 
         if step % self.interval == 0:
