@@ -62,6 +62,7 @@ class MarginPlottingHook(Hook):
             self.results_log[key] += [value]
 
         if batch_index % self.interval == 0:
+            self.logger.info(f"step: {step}")
             for key in self.keys:
                 m = np.mean(self.results_log[key])
                 s = np.std(self.results_log[key])
@@ -182,16 +183,20 @@ class scoreLODHook(Hook):
 
     def get_lod_from_score(self, score):
         idx = np.digitize(np.array([score]), self.reduced_schedule[1])-1
+
         lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, idx+1]
         start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, idx+1]
+
         curr_lod = linear_var(score, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
+
         return curr_lod
             
 
     def before_step(self, batch_index, fetches, feeds, batch):
         #batch['lod'] = self.get_lod_from_score(self.score)
         fetches["scoreLOD"] = self.scalars
-        feeds[self.pl] = self.get_lod_from_score(np.mean(self.scores))
+        lod = self.get_lod_from_score(np.mean(self.scores))
+        feeds[self.pl] = lod
 
 
     def after_step(self, batch_index, last_results):
@@ -203,7 +208,7 @@ class scoreLODHook(Hook):
             self.results_log[key] += [value]
             if len(self.results_log[key]) >= self.interval:
                 self.results_log[key] = self.results_log[keys][1:]
-            self.scores.append(np.absolute(np.mean(self.results_log[key])))
+            self.scores.append(np.absolute(np.mean(self.results_log[key])+np.std(self.results_log[key])))
 
         if step % self.interval == 0:
             self.logger.info(f'current log: {self.results_log}')
