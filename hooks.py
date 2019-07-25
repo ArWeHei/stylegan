@@ -154,7 +154,7 @@ class scoreLODHook(Hook):
         self,
         placeholder,
         scalars,
-        interval=100,
+        interval=1000,
         schedule={
             4:[10., 1.0],
             3:[.75, .50],
@@ -207,8 +207,5 @@ class scoreLODHook(Hook):
         for (key, value) in results.items():
             self.results_log[key] += [value]
             if len(self.results_log[key]) >= self.interval:
-                self.results_log[key] = self.results_log[keys][1:]
+                self.results_log[key] = self.results_log[key][1:]
             self.scores.append(np.absolute(np.mean(self.results_log[key])+np.std(self.results_log[key])))
-
-        if step % self.interval == 0:
-            self.logger.info(f'current log: {self.results_log}')
