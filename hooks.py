@@ -69,6 +69,7 @@ class MarginPlottingHook(Hook):
                 self.tb_logger.add_scalar(self.prefix+key+'_p_std', m+s, step)
                 self.tb_logger.add_scalar(self.prefix+key+'_m_std', m-s, step)
                 self.logger.info(f"{key}: {m} ± {s}")
+                self.results_log[key] = []
 
 
 class ImageLoggingHook(Hook):

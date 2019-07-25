@@ -102,7 +102,7 @@ class ListTrainer(TFListTrainer):
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
         fake_scores_out, _ = self.model.discriminate(images_out, labels_in, lod_in)
-        images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
+        #images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
 
         real_scores_out, real_scaled = self.model.discriminate(images_in, labels_in, lod_in)
 
