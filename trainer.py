@@ -102,14 +102,25 @@ class ListTrainer(TFListTrainer):
         self.s_ops['lod'] = lod_in
         self.lod_in = lod_in
 
+        eval_lat_in = tf.constant(np.repeat(np.random.randn((batch_size/2, 512)), 2, axis=0)
+        eval_lab_in = tf.constant(np.tile([[1,0], [0,1]], batch_size/2))
+        self.logger.info(eval_lat_in)
+        self.logger.info(eval_lab_in)
+
+
         images_out = self.model.generate(latents_in, labels_in, lod_in)
+        eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
+        self.img_ops['eval'] = eval_images_out
 
         fake_scores_out, _ = self.model.discriminate(images_out, labels_in, lod_in)
         #images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
 
         real_scores_out, real_scaled = self.model.discriminate(images_in, labels_in, lod_in)
 
-        self.model.outputs = {'images_out': images_out, 'scaled_images':real_scaled}
+        self.model.outputs = {
+            'images_out': images_out,
+            'scaled_images':real_scaled,
+            }
 
         self.model.scores = {
             'fake_scores_out': fake_scores_out,

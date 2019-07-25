@@ -88,40 +88,7 @@ class ImageLoggingHook(Hook):
 
         self.root = root_path
         self.logger = get_logger(self)
-        if summary_writer is None:
-            self.tb_logger = SummaryWriter(root_path)
-        else:
-            self.tb_logger = summary_writer
 
-
-    def before_step(self, batch_index, fetches, feeds, batch):
-        if batch_index % self.interval == 0:
-            fetches["images"] = self.images
-
-
-    def after_step(self, batch_index, last_results):
-        if batch_index % self.interval == 0:
-            step = last_results["global_step"]
-            last_results = last_results["images"]
-            for (key, value) in last_results.items():
-                self.tb_logger.add_images(key, (value+1)/2, step, dataformats='NCHW')
-
-
-class ImageEvalHook(Hook):
-    def __init__(
-        self,
-        images={},
-        interval=1000,
-        root_path="logs",
-        summary_writer=None
-    ):
-
-        self.images = images
-        self.keys = list(images.keys())
-        self.interval = interval
-
-        self.root = root_path
-        self.logger = get_logger(self)
         if summary_writer is None:
             self.tb_logger = SummaryWriter(root_path)
         else:
