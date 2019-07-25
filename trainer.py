@@ -48,7 +48,16 @@ class ListTrainer(TFListTrainer):
             )
         self.hooks.append(ckpt_hook)
 
-        lodhook = LODHook(self.lod_in)
+        lodhook = LODHook(self.lod_in,
+            schedule={
+                4:[     0,  40000],
+                3:[ 90000, 180000],
+                4:[250000, 300000],
+                3:[400000, 500000],
+                2:[600000, 700000],
+                0:[900000, 1000000],
+            },
+                )
         self.hooks.append(lodhook)
 
         loghook = MarginPlottingHook(
@@ -90,12 +99,6 @@ class ListTrainer(TFListTrainer):
 
 
         global_step = self._global_step_variable * batch_size
-        #lod_in = make_linear_var(global_step, 0*600000, 30*600000, 4, 4)\
-        #       - make_linear_var(global_step, 2*600000, 4*600000, 0, 1)\
-        #       - make_linear_var(global_step, 8*600000, 12*600000, 0, 1)\
-        #       - make_linear_var(global_step, 16*600000, 20*600000, 0, 1)\
-        #       - make_linear_var(global_step, 24*600000, 28*600000, 0, 1)
-        
         self.s_ops['lod'] = lod_in
         self.lod_in = lod_in
 
