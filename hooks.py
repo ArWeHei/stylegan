@@ -57,14 +57,15 @@ class MarginPlottingHook(Hook):
 
     def after_step(self, batch_index, last_results):
         step = last_results["global_step"]
-        last_results = last_results["custom_scalars"]
-        for (key, value) in last_results.items():
+        results = last_results["custom_scalars"]
+        for (key, value) in results.items():
             self.results_log[key] += [value]
 
         if batch_index % self.interval == 0:
             for key in self.keys:
                 m = np.mean(self.results_log[key])
                 s = np.std(self.results_log[key])
+                self.m, self.s = m, s
                 self.tb_logger.add_scalar(self.prefix+key+'_mean', m, step)
                 self.tb_logger.add_scalar(self.prefix+key+'_p_std', m+s, step)
                 self.tb_logger.add_scalar(self.prefix+key+'_m_std', m-s, step)
@@ -76,7 +77,7 @@ class ImageLoggingHook(Hook):
     def __init__(
         self,
         images={},
-        interval=100,
+        interval=1000,
         root_path="logs",
         summary_writer=None
     ):
@@ -150,6 +151,8 @@ class scoreLODHook(Hook):
     def __init__(
         self,
         placeholder,
+        scalars,
+        interval=100,
         schedule={
             4:[10., 1.0],
             3:[.75, .50],
@@ -162,10 +165,17 @@ class scoreLODHook(Hook):
         tmp = [[k, x] for (k, l) in schedule.items() for x in l]
         self.reduced_schedule = np.array(tmp).T
 
-        self.score = 0
+        self.scalars = scalars
+        self.keys = list(scalars.keys())
+        self.interval = interval
+
+        self.logger = get_logger(self)
+
+        self.results_log = {key:np.full(interval, 10) for key in self.keys} #have a high initial value that drive the mean up
+        self.scores = [10, 10]
 
         self.pl = placeholder
-        self.logger = get_logger(self)
+
         self.logger.info(self.reduced_schedule)
 
 
@@ -179,14 +189,17 @@ class scoreLODHook(Hook):
 
     def before_step(self, batch_index, fetches, feeds, batch):
         #batch['lod'] = self.get_lod_from_score(self.score)
-        feeds[self.pl] = self.get_lod_from_score(self.score)
+        fetches["scoreLOD"] = self.scalars
+        feeds[self.pl] = self.get_lod_from_score(np.mean(self.scores))
 
 
     def after_step(self, batch_index, last_results):
         step = last_results["global_step"]
-        if step < 100:
-            self.score = 5
-        else:
-            pos_score = last_results["custom_scalars"]["scores/real"]
-            neg_score = -last_results["custom_scalars"]["scores/fake"]
-            self.score = (pos_score+neg_score)/2
+        results = last_results["scoreLOD"]
+
+        for (key, value) in results.items():
+            self.results_log[key] = self.results_log[key][1:] + [value]
+            self.scores.append(np.absolute(np.mean(self.results_log[key])))
+
+        if step % self.interval == 0:
+            self.logger.info(f'current log: {self.results_log}')
