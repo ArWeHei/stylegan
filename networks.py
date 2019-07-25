@@ -223,7 +223,7 @@ def G_synthesis(
     def torgb(res, x): # res = 2..resolution_log2
         lod = resolution_log2 - res
         with tf.variable_scope('ToRGB_lod%d' % lod, reuse=tf.AUTO_REUSE):
-            return ops.apply_bias(ops.conv2d(x, fmaps=num_channels, kernel=1, gain=1, use_wscale=use_wscale))
+            return tf.nn.tanh(ops.apply_bias(ops.conv2d(x, fmaps=num_channels, kernel=1, gain=1, use_wscale=use_wscale)))
 
     # Fixed structure: simple and efficient, but does not support progressive growing.
     if structure == 'fixed':
