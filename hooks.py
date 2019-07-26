@@ -173,7 +173,7 @@ class scoreLODHook(Hook):
 
         self.logger = get_logger(self)
 
-        self.results_log = {key:[] for key in self.keys} #have a high initial value that drive the mean up
+        self.results_log = {key:1 for key in self.keys} #have a high initial value that drive the mean up
         self.scores = [10, 10]
 
         self.pl = placeholder
@@ -198,7 +198,9 @@ class scoreLODHook(Hook):
         #batch['lod'] = self.get_lod_from_score(self.score)
         fetches["scoreLOD"] = self.scalars
         lod = self.get_lod_from_score(np.mean(self.scores))
-        self.curr_lod = a * curr_lod + (1 - a) * lod
+        a = .05
+        self.curr_lod = a * self.curr_lod + (1 - a) * lod
+        
         feeds[self.pl] = self.curr_lod
 
 
@@ -206,10 +208,11 @@ class scoreLODHook(Hook):
         step = last_results["global_step"]
         results = last_results["scoreLOD"]
         self.scores = []
+        a = .05
 
         for (key, value) in results.items():
             self.results_log[key] = a * self.results_log[key] + (1 - a) * np.mean(value)
             #if len(self.results_log[key]) >= self.interval:
                 #self.results_log[key] = self.results_log[key][1:]
             #self.scores.append(np.absolute(np.mean(self.results_log[key])+np.std(self.results_log[key])))
-            self.scores.append(np.absolute(self.results_log[key])
+            self.scores.append(np.absolute(self.results_log[key]))

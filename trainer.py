@@ -26,7 +26,10 @@ class ListTrainer(TFListTrainer):
         self.curr_phase = 'discr'
 
         self.img_ops = dict()
+        self.log_ops = dict()
         self.s_ops = dict()
+        self.train_placeholders = dict()
+        self.update_ops = list()
         self.create_train_op()
 
         self.Dloss = 1
