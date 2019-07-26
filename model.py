@@ -159,7 +159,7 @@ class TrainModel(object):
         self.variables = {
             'generator':self.generator.variables,
             'discriminator':self.discriminator.variables,
-            'both':self.all_variables,
+            'net':self.all_variables,
         }
 
     def generate(self, latents_in, labels_in, lod_in):

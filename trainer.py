@@ -22,18 +22,11 @@ from tensorboardX import SummaryWriter
 
 class ListTrainer(TFListTrainer):
     def setup(self):
-        self.accuracy = 0.8
-        self.alpha = 0.05
-        self.win_rate = self.config.get("win_rate", .8)
-
+        self.ema_alpha = self.config.get("ema_alpha", 0.05)
         self.curr_phase = 'discr'
 
-        self.train_placeholders = dict()
-        self.log_ops = dict()
         self.img_ops = dict()
-        self.hist_ops = dict()
         self.s_ops = dict()
-        self.update_ops = list()
         self.create_train_op()
 
         self.Dloss = 1
@@ -203,8 +196,10 @@ class ListTrainer(TFListTrainer):
 
         tmp = super(TFListTrainer, self).run(fetches, feed_dict)
 
-        self.Gloss = tmp["custom_scalars"]["losses/gen"]
-        self.Dloss = tmp["custom_scalars"]["losses/discr"]
+        a = self.ema_alpha
+
+        self.Gloss = a * tmp["custom_scalars"]["losses/gen"] + (1 - a)*self.Gloss
+        self.Dloss = a * tmp["custom_scalars"]["losses/discr"] + (1 - a)*self.Dloss
 
         return tmp
 

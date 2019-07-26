@@ -180,6 +180,8 @@ class scoreLODHook(Hook):
 
         self.logger.info(self.reduced_schedule)
 
+        self.curr_lod = 4
+
 
     def get_lod_from_score(self, score):
         idx = np.digitize(np.array([score]), self.reduced_schedule[1])-1
@@ -196,7 +198,8 @@ class scoreLODHook(Hook):
         #batch['lod'] = self.get_lod_from_score(self.score)
         fetches["scoreLOD"] = self.scalars
         lod = self.get_lod_from_score(np.mean(self.scores))
-        feeds[self.pl] = lod
+        self.curr_lod = a * curr_lod + (1 - a) * lod
+        feeds[self.pl] = self.curr_lod
 
 
     def after_step(self, batch_index, last_results):
@@ -205,7 +208,8 @@ class scoreLODHook(Hook):
         self.scores = []
 
         for (key, value) in results.items():
-            self.results_log[key] += [value]
-            if len(self.results_log[key]) >= self.interval:
-                self.results_log[key] = self.results_log[key][1:]
-            self.scores.append(np.absolute(np.mean(self.results_log[key])+np.std(self.results_log[key])))
+            self.results_log[key] = a * self.results_log[key] + (1 - a) * np.mean(value)
+            #if len(self.results_log[key]) >= self.interval:
+                #self.results_log[key] = self.results_log[key][1:]
+            #self.scores.append(np.absolute(np.mean(self.results_log[key])+np.std(self.results_log[key])))
+            self.scores.append(np.absolute(self.results_log[key])
