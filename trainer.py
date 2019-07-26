@@ -36,6 +36,9 @@ class ListTrainer(TFListTrainer):
         self.update_ops = list()
         self.create_train_op()
 
+        self.Dloss = 1
+        self.Gloss = 1
+
         tb_writer = SummaryWriter(ProjectManager.train)
 
         ckpt_hook = CheckpointHook(
@@ -159,32 +162,42 @@ class ListTrainer(TFListTrainer):
         losses = []
         losses.append({"generator": gen_loss})
         losses.append({"discriminator": discr_loss})
-        losses.append({"both": gen_loss+discr_loss})
-        
+        losses.append({"net": gen_loss+discr_loss})
+
+        g = tf.Variable(0, name="gen_step")
+        d = tf.Variable(0, name="discr_step")
+        self.discr_steps = tf.assign_add(d, 1) 
+        self.gen_steps = tf.assign_add(g, 1)
+        self.s_ops["gen_steps"] = g
+        self.s_ops["discr_steps"] = d
+
         return losses
 
-    def run(self, fetches, feed_dict):
-        #self.logger.info(feed_dict)
-        #self.logger.info(fetches)
-        result = super().run(fetches, feed_dict)
-        #pprint(result)
-        return result
+    #def run(self, fetches, feed_dict):
+    #    #self.logger.info(feed_dict)
+    #    #self.logger.info(fetches)
+    #    result = super().run(fetches, feed_dict)
+    #    #pprint(result)
+    #    return result
 
     def run(self, fetches, feed_dict):
         #decide in run when to switch optimizers
-        if self.Dloss/self.Gloss > 2:
+        if self.Gloss/self.Dloss > 2:
             train_idx = 0
             fetches["g_steps"] = self.gen_steps
             self.curr_phase = 'gen'
-        if self.Gloss/self.Dloss > 2:
+        elif self.Dloss/self.Gloss > 2:
             train_idx = 1
             fetches["d_steps"] = self.discr_steps
             self.curr_phase = 'discr'
-        else:
-            train_idx = 2
+        elif self.curr_phase == 'discr':
+            train_idx = 0
             fetches["g_steps"] = self.gen_steps
+            self.curr_phase = 'gen'
+        elif self.curr_phase == 'gen':
+            train_idx = 1
             fetches["d_steps"] = self.discr_steps
-            self.curr_phase = 'both'
+            self.curr_phase = 'discr'
 
         fetches["step_ops"] = self.all_train_ops[train_idx]
 

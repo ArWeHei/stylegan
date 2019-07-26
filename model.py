@@ -62,7 +62,7 @@ class generator(object):
         self.kwargs['use_wscale']          = config.get('use_wscale',         True)         # Enable equalized learning rate?
         self.kwargs['dtype']               = config.get('dtype',              'float32')    # Data type to use for activations and outputs.
 
-        self.name = "generator"
+        self.name = "net/generator"
 
         self.define_graph()
 
@@ -118,7 +118,7 @@ class discriminator(object):
         self.kwargs['blur_filter']         = config.get('blur_filter',        [1,2,1])      # Low-pass filter to apply when resampling activations. None = no filtering.
         self.kwargs['structure']           = config.get('structure',          'recursive')       # 'fixed' = no progressive growing, 'linear' = human-readable, 'recursive' = efficient, 'auto' = select automatically.
 
-        self.name = "discriminator"
+        self.name = "net/discriminator"
 
         self.define_graph()
 
