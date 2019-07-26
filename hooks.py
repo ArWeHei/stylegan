@@ -154,7 +154,7 @@ class scoreLODHook(Hook):
         self,
         placeholder,
         scalars,
-        interval=1000,
+        interval=100,
         schedule={
             4:[10., 1.0],
             3:[.75, .50],
@@ -181,6 +181,7 @@ class scoreLODHook(Hook):
         self.logger.info(self.reduced_schedule)
 
         self.curr_lod = 4
+        self.old_lod = 4
         self.upper_threshold = 4
 
 
@@ -207,7 +208,13 @@ class scoreLODHook(Hook):
         elif int(self.curr_lod) +1 < self.upper_threshold:
             self.upper_threshold = int(self.curr_lod) +1
 
-        feeds[self.pl] = round(self.curr_lod, 2)
+        if step % self.interval = 0:
+            if self.curr_lod > self.old_lod:
+                self.old_lod += .01
+            elif self.curr_lod < self.old_lod:
+                self.old_lod -= .01
+
+        feeds[self.pl] = self.old_lod
 
 
     def after_step(self, batch_index, last_results):
