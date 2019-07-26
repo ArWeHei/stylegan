@@ -181,6 +181,7 @@ class scoreLODHook(Hook):
         self.logger.info(self.reduced_schedule)
 
         self.curr_lod = 4
+        self.upper_threshold = 4
 
 
     def get_lod_from_score(self, score):
@@ -201,6 +202,11 @@ class scoreLODHook(Hook):
         a = .05
         self.curr_lod = a * self.curr_lod + (1 - a) * lod
         
+        if self.curr_lod > self.upper_threshold:
+            self.curr_lod = self.upper_threshold
+        elif int(self.curr_lod) +1 < self.upper_threshold:
+            self.upper_threshold = int(self.curr_lod) +1
+
         feeds[self.pl] = self.curr_lod
 
 
