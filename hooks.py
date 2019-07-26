@@ -199,25 +199,25 @@ class scoreLODHook(Hook):
         #batch['lod'] = self.get_lod_from_score(self.score)
         fetches["scoreLOD"] = self.scalars
         lod = self.get_lod_from_score(np.mean(self.scores))
-        a = .05
-        self.curr_lod = a * self.curr_lod + (1 - a) * lod
+        a = .005
+        self.curr_lod = a * lod + (1 - a) * self.curr_lod
         
         if self.curr_lod > self.upper_threshold:
             self.curr_lod = self.upper_threshold
         elif int(self.curr_lod) +1 < self.upper_threshold:
             self.upper_threshold = int(self.curr_lod) +1
 
-        feeds[self.pl] = self.curr_lod
+        feeds[self.pl] = round(self.curr_lod, 2)
 
 
     def after_step(self, batch_index, last_results):
         step = last_results["global_step"]
         results = last_results["scoreLOD"]
         self.scores = []
-        a = .05
+        a = .005
 
         for (key, value) in results.items():
-            self.results_log[key] = a * self.results_log[key] + (1 - a) * np.mean(value)
+            self.results_log[key] = (1-a) * self.results_log[key] + a * np.mean(value)
             #if len(self.results_log[key]) >= self.interval:
                 #self.results_log[key] = self.results_log[key][1:]
             #self.scores.append(np.absolute(np.mean(self.results_log[key])+np.std(self.results_log[key])))

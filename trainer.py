@@ -22,7 +22,7 @@ from tensorboardX import SummaryWriter
 
 class ListTrainer(TFListTrainer):
     def setup(self):
-        self.ema_alpha = self.config.get("ema_alpha", 0.05)
+        self.ema_alpha = self.config.get("ema_alpha", 0.005)
         self.curr_phase = 'discr'
 
         self.img_ops = dict()
