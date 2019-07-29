@@ -154,7 +154,7 @@ class scoreLODHook(Hook):
         self,
         placeholder,
         scalars,
-        interval=100,
+        interval=250,
         schedule={
             4:[10., 1.0],
             3:[.75, .50],
@@ -175,6 +175,7 @@ class scoreLODHook(Hook):
 
         self.results_log = {key:1 for key in self.keys} #have a high initial value that drive the mean up
         self.scores = [10, 10]
+        self.step = 0
 
         self.pl = placeholder
 
@@ -208,17 +209,18 @@ class scoreLODHook(Hook):
         elif int(self.curr_lod) +1 < self.upper_threshold:
             self.upper_threshold = int(self.curr_lod) +1
 
-        if step % self.interval = 0:
-            if self.curr_lod > self.old_lod:
-                self.old_lod += .01
+        if self.step % self.interval == 0:
+            #if self.curr_lod > self.old_lod:
+            if self.step < 5000:
+                self.old_lod = 4
             elif self.curr_lod < self.old_lod:
-                self.old_lod -= .01
+                self.old_lod -= .1
 
         feeds[self.pl] = self.old_lod
 
 
     def after_step(self, batch_index, last_results):
-        step = last_results["global_step"]
+        self.step = last_results["global_step"]
         results = last_results["scoreLOD"]
         self.scores = []
         a = .005

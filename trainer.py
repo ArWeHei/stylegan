@@ -114,7 +114,7 @@ class ListTrainer(TFListTrainer):
         self.img_ops['eval'] = eval_images_out
 
         fake_scores_out, _ = self.model.discriminate(images_out, labels_in, lod_in)
-        #images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
+        images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
 
         real_scores_out, real_scaled = self.model.discriminate(images_in, labels_in, lod_in)
 
@@ -141,10 +141,14 @@ class ListTrainer(TFListTrainer):
     def make_loss_ops(self):
         self.define_connections()
 
-        gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
+        #gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
+        gen_loss = D_logistic(
+            self.model.scores['fake_scores_out'],
+            self.model.scores['real_scores_out'])
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
+        #discr_loss += tf.abs(tf.abs(self.model.scores['real_scores_out']/self.model.scores['fake_scores_out'])-1)
 
         self.img_ops['fake'] = self.model.outputs['images_out']
         self.img_ops['real'] = self.model.outputs['scaled_images']
