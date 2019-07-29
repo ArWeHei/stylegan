@@ -169,40 +169,44 @@ class ListTrainer(TFListTrainer):
 
         return losses
 
-    def run(self, fetches, feed_dict):
-        #self.logger.info(feed_dict)
-        #self.logger.info(fetches)
-        result = super().run(fetches, feed_dict)
-        #pprint(result)
-        return result
-
     #def run(self, fetches, feed_dict):
-    #    #decide in run when to switch optimizers
-    #    if self.fake_score/self.real_loss > 2:
-    #        train_idx = 0
-    #        fetches["g_steps"] = self.gen_steps
-    #        self.curr_phase = 'gen'
-    #    elif self.real_score/self.fake_loss > 2:
-    #        train_idx = 1
-    #        fetches["d_steps"] = self.discr_steps
-    #        self.curr_phase = 'discr'
-    #    elif self.curr_phase == 'discr':
-    #        train_idx = 0
-    #        fetches["g_steps"] = self.gen_steps
-    #        self.curr_phase = 'gen'
-    #    elif self.curr_phase == 'gen':
-    #        train_idx = 1
-    #        fetches["d_steps"] = self.discr_steps
-    #        self.curr_phase = 'discr'
+    #    #self.logger.info(feed_dict)
+    #    #self.logger.info(fetches)
+    #    result = super().run(fetches, feed_dict)
+    #    #pprint(result)
+    #    return result
 
-    #    fetches["step_ops"] = self.all_train_ops[train_idx]
+    def run(self, fetches, feed_dict):
+        #decide in run when to switch optimizers
+        if self.fake_score/self.real_score > 2:
+            train_idx = 0
+            fetches["g_steps"] = self.gen_steps
+            self.curr_phase = 'gen'
+        elif self.real_score/self.fake_score > 2:
+            train_idx = 0
+            fetches["g_steps"] = self.gen_steps
+            self.curr_phase = 'gen'
+        elif self.fake_score > 0:
+            train_idx = 1
+            fetches["d_steps"] = self.discr_steps
+            self.curr_phase = 'discr'
+        elif self.curr_phase == 'discr':
+            train_idx = 0
+            fetches["g_steps"] = self.gen_steps
+            self.curr_phase = 'gen'
+        elif self.curr_phase == 'gen':
+            train_idx = 1
+            fetches["d_steps"] = self.discr_steps
+            self.curr_phase = 'discr'
 
-    #    tmp = super(TFListTrainer, self).run(fetches, feed_dict)
+        fetches["step_ops"] = self.all_train_ops[train_idx]
 
-    #    a = self.ema_alpha
+        tmp = super(TFListTrainer, self).run(fetches, feed_dict)
 
-    #    self.real_score = a * tmp["custom_scalars"]["scores/real"] + (1 - a)*self.real_score
-    #    self.fake_score = a * tmp["custom_scalars"]["scores/fake"] + (1 - a)*self.fake_score
+        a = self.ema_alpha
 
-    #    return tmp
+        self.real_score = a * tmp["custom_scalars"]["scores/real"] + (1 - a)*self.real_score
+        self.fake_score = a * tmp["custom_scalars"]["scores/fake"] + (1 - a)*self.fake_score
+
+        return tmp
 
