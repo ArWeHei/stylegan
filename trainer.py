@@ -32,8 +32,8 @@ class ListTrainer(TFListTrainer):
         self.update_ops = list()
         self.create_train_op()
 
-        self.Dloss = 1
-        self.Gloss = 1
+        self.fake_loss = 1
+        self.real_loss = 1
 
         tb_writer = SummaryWriter(ProjectManager.train)
 
@@ -141,14 +141,10 @@ class ListTrainer(TFListTrainer):
     def make_loss_ops(self):
         self.define_connections()
 
-        #gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
-        gen_loss = D_logistic(
-            self.model.scores['fake_scores_out'],
-            self.model.scores['real_scores_out'])
+        gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out']-self.model.scores['real_scores_out'])
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
-        #discr_loss += tf.abs(tf.abs(self.model.scores['real_scores_out']/self.model.scores['fake_scores_out'])-1)
 
         self.img_ops['fake'] = self.model.outputs['images_out']
         self.img_ops['real'] = self.model.outputs['scaled_images']
@@ -173,40 +169,40 @@ class ListTrainer(TFListTrainer):
 
         return losses
 
-    #def run(self, fetches, feed_dict):
-    #    #self.logger.info(feed_dict)
-    #    #self.logger.info(fetches)
-    #    result = super().run(fetches, feed_dict)
-    #    #pprint(result)
-    #    return result
-
     def run(self, fetches, feed_dict):
-        #decide in run when to switch optimizers
-        if self.Gloss/self.Dloss > 2:
-            train_idx = 0
-            fetches["g_steps"] = self.gen_steps
-            self.curr_phase = 'gen'
-        elif self.Dloss/self.Gloss > 2:
-            train_idx = 1
-            fetches["d_steps"] = self.discr_steps
-            self.curr_phase = 'discr'
-        elif self.curr_phase == 'discr':
-            train_idx = 0
-            fetches["g_steps"] = self.gen_steps
-            self.curr_phase = 'gen'
-        elif self.curr_phase == 'gen':
-            train_idx = 1
-            fetches["d_steps"] = self.discr_steps
-            self.curr_phase = 'discr'
+        #self.logger.info(feed_dict)
+        #self.logger.info(fetches)
+        result = super().run(fetches, feed_dict)
+        #pprint(result)
+        return result
 
-        fetches["step_ops"] = self.all_train_ops[train_idx]
+    #def run(self, fetches, feed_dict):
+    #    #decide in run when to switch optimizers
+    #    if self.fake_score/self.real_loss > 2:
+    #        train_idx = 0
+    #        fetches["g_steps"] = self.gen_steps
+    #        self.curr_phase = 'gen'
+    #    elif self.real_score/self.fake_loss > 2:
+    #        train_idx = 1
+    #        fetches["d_steps"] = self.discr_steps
+    #        self.curr_phase = 'discr'
+    #    elif self.curr_phase == 'discr':
+    #        train_idx = 0
+    #        fetches["g_steps"] = self.gen_steps
+    #        self.curr_phase = 'gen'
+    #    elif self.curr_phase == 'gen':
+    #        train_idx = 1
+    #        fetches["d_steps"] = self.discr_steps
+    #        self.curr_phase = 'discr'
 
-        tmp = super(TFListTrainer, self).run(fetches, feed_dict)
+    #    fetches["step_ops"] = self.all_train_ops[train_idx]
 
-        a = self.ema_alpha
+    #    tmp = super(TFListTrainer, self).run(fetches, feed_dict)
 
-        self.Gloss = a * tmp["custom_scalars"]["losses/gen"] + (1 - a)*self.Gloss
-        self.Dloss = a * tmp["custom_scalars"]["losses/discr"] + (1 - a)*self.Dloss
+    #    a = self.ema_alpha
 
-        return tmp
+    #    self.real_score = a * tmp["custom_scalars"]["scores/real"] + (1 - a)*self.real_score
+    #    self.fake_score = a * tmp["custom_scalars"]["scores/fake"] + (1 - a)*self.fake_score
+
+    #    return tmp
 
