@@ -153,9 +153,9 @@ class scoreLODHook(Hook):
         self,
         placeholder,
         scalars,
-        interval=250,
+        interval=1000,
         schedule={
-            4:[10., 1.0],
+            4:[10., 1.5],
             3:[.75, .50],
             2:[.35, .25],
             1:[.15, .10],
@@ -201,27 +201,34 @@ class scoreLODHook(Hook):
 
 
     def get_lod_from_scores(self):
-        self.m = np.mean(np.absolute([self.results_log[key] for key in self.keys]))
+        self.m = np.mean([self.results_log[key] for key in self.keys])
         self.s = np.std([self.results_log[key] for key in self.keys])
+        if (self.s < .5 and self.m < self.s):
+            self.curr_lod = 0
+        else:
+            self.curr_lod = 4
 
-        self.score = self.m + self.s
+        #self.score = (self.m + self.s) / 2
 
-        idx = np.digitize(np.array([self.score]), self.reduced_schedule[1])-1
+        #idx = np.digitize(np.array([self.score]), self.reduced_schedule[1])-1
+        #idx = max(0, idx)
+        #idx = min(8, idx)
 
-        lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, idx+1]
-        start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, idx+1]
+        #lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, idx+1]
+        #start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, idx+1]
 
-        lod = linear_var(score, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
+        #lod = linear_var(self.score, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
+        #self.logger.info(lod)
 
-        a = .005
-        self.curr_lod = a * lod + (1 - a) * self.curr_lod
+        #a = .005
+        #self.curr_lod = a * lod + (1 - a) * self.curr_lod
         
 
     def before_step(self, batch_index, fetches, feeds, batch):
         #fetches["scoreLOD"] = self.scalars
         fetches["lod_scalars"] = self.scalars
 
-        self.get_lod_from_score(self.scores)
+        self.get_lod_from_scores()
 
         if self.step % self.interval == 0:
             #if self.curr_lod > self.old_lod:
@@ -231,6 +238,8 @@ class scoreLODHook(Hook):
                 self.old_lod -= .1
             elif self.curr_lod > self.old_lod:
                 self.old_lod += .01
+            if self.old_lod > 4:
+                self.old_lod = 4
 
         feeds[self.pl] = self.old_lod
 
@@ -244,7 +253,9 @@ class scoreLODHook(Hook):
                 self.results_log[key].pop(0)
 
         if batch_index % self.interval == 0:
-            self.tb_logger.add_scalar(self.prefix+'abs_mean', self.m, step)
-            self.tb_logger.add_scalar(self.prefix+'std', self.s, step)
-            self.tb_logger.add_scalar(self.prefix+'score', self.score, step)
-            self.logger.info(f"score: {self.m} + {self.s} = {self.score}")
+            self.tb_logger.add_scalar(self.prefix+'abs_mean', self.m, self.step)
+            self.tb_logger.add_scalar(self.prefix+'std', self.s, self.step)
+            #self.tb_logger.add_scalar(self.prefix+'score', self.score, self.step)
+            self.tb_logger.add_scalar(self.prefix+'curr_lod', self.curr_lod, self.step)
+            #self.logger.info(f"score: {self.m} + {self.s} = {self.score}")
+            self.logger.info(f"curr_lod: {self.curr_lod}")
