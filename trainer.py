@@ -33,8 +33,8 @@ class ListTrainer(TFListTrainer):
         self.update_ops = list()
         self.create_train_op()
 
-        self.fake_score = 1
-        self.real_score = 1
+        self.G_loss = 1
+        self.D_loss = 1
 
         tb_writer = SummaryWriter(ProjectManager.train)
 
@@ -176,15 +176,11 @@ class ListTrainer(TFListTrainer):
 
     def run(self, fetches, feed_dict):
         #decide in run when to switch optimizers
-        if self.fake_score > 0:
+        if self.D_loss/self.G_loss > 2:
             train_idx = 1
             fetches["d_steps"] = self.discr_steps
             self.curr_phase = 'discr'
-        elif self.fake_score/self.real_score > 2:
-            train_idx = 0
-            fetches["g_steps"] = self.gen_steps
-            self.curr_phase = 'gen'
-        elif self.real_score/self.fake_score > 2:
+        elif self.G_loss/self.D_loss > 2:
             train_idx = 0
             fetches["g_steps"] = self.gen_steps
             self.curr_phase = 'gen'
@@ -202,10 +198,9 @@ class ListTrainer(TFListTrainer):
         tmp = super(TFListTrainer, self).run(fetches, feed_dict)
 
         a = self.ema_alpha
-        a = .01
 
-        self.real_score = a * tmp["custom_scalars"]["scores/real"] + (1 - a)*self.real_score
-        self.fake_score = a * tmp["custom_scalars"]["scores/fake"] + (1 - a)*self.fake_score
+        self.D_loss = a * tmp["custom_scalars"]["losses/discr"] + (1 - a)*self.D_loss
+        self.G_loss = a * tmp["custom_scalars"]["losses/gen"] + (1 - a)*self.G_loss
 
         return tmp
 
