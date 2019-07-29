@@ -59,14 +59,13 @@ class MarginPlottingHook(Hook):
         step = last_results["global_step"]
         results = last_results["custom_scalars"]
         for (key, value) in results.items():
-            self.results_log[key] += [value]
+            self.results_log[key].append(value)
 
         if batch_index % self.interval == 0:
             self.logger.info(f"step: {step}")
             for key in self.keys:
                 m = np.mean(self.results_log[key])
                 s = np.std(self.results_log[key])
-                self.m, self.s = m, s
                 self.tb_logger.add_scalar(self.prefix+key+'_mean', m, step)
                 self.tb_logger.add_scalar(self.prefix+key+'_p_std', m+s, step)
                 self.tb_logger.add_scalar(self.prefix+key+'_m_std', m-s, step)
@@ -162,6 +161,8 @@ class scoreLODHook(Hook):
             1:[.15, .10],
             0:[.05, 0.0],
         },
+        root_path="logs",
+        summary_writer=None,
     ):
         self.schedule = schedule
         tmp = [[k, x] for (k, l) in schedule.items() for x in l]
@@ -171,43 +172,56 @@ class scoreLODHook(Hook):
         self.keys = list(scalars.keys())
         self.interval = interval
 
+        self.root = root_path
         self.logger = get_logger(self)
+        if summary_writer is None:
+            self.tb_logger = SummaryWriter(root_path)
+        else:
+            self.tb_logger = summary_writer
 
-        self.results_log = {key:1 for key in self.keys} #have a high initial value that drive the mean up
-        self.scores = [10, 10]
+        self.results_log = {key:[] for key in self.keys}
+        self.prefix = 'lod/'
+
+        layout = {'lod':{'scores':
+            ['Multiline', 
+            [
+                self.prefix+'abs_mean',
+                self.prefix+'std',
+                self.prefix+'score',
+            ]]
+        }}
+
+        self.tb_logger.add_custom_scalars(layout)
         self.step = 0
 
         self.pl = placeholder
 
-        self.logger.info(self.reduced_schedule)
-
         self.curr_lod = 4
         self.old_lod = 4
-        self.upper_threshold = 4
 
 
-    def get_lod_from_score(self, score):
-        idx = np.digitize(np.array([score]), self.reduced_schedule[1])-1
+    def get_lod_from_scores(self):
+        self.m = np.mean(np.absolute([self.results_log[key] for key in self.keys]))
+        self.s = np.std([self.results_log[key] for key in self.keys])
+
+        self.score = self.m + self.s
+
+        idx = np.digitize(np.array([self.score]), self.reduced_schedule[1])-1
 
         lod_lo, lod_hi = self.reduced_schedule[0, idx], self.reduced_schedule[0, idx+1]
         start, end = self.reduced_schedule[1, idx], self.reduced_schedule[1, idx+1]
 
-        curr_lod = linear_var(score, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
+        lod = linear_var(score, start, end, lod_lo, lod_hi, min(lod_lo, lod_hi), max(lod_lo, lod_hi))
 
-        return curr_lod
-            
-
-    def before_step(self, batch_index, fetches, feeds, batch):
-        #batch['lod'] = self.get_lod_from_score(self.score)
-        fetches["scoreLOD"] = self.scalars
-        lod = self.get_lod_from_score(np.mean(self.scores))
         a = .005
         self.curr_lod = a * lod + (1 - a) * self.curr_lod
         
-        if self.curr_lod > self.upper_threshold:
-            self.curr_lod = self.upper_threshold
-        elif int(self.curr_lod) +1 < self.upper_threshold:
-            self.upper_threshold = int(self.curr_lod) +1
+
+    def before_step(self, batch_index, fetches, feeds, batch):
+        #fetches["scoreLOD"] = self.scalars
+        fetches["lod_scalars"] = self.scalars
+
+        self.get_lod_from_score(self.scores)
 
         if self.step % self.interval == 0:
             #if self.curr_lod > self.old_lod:
@@ -215,19 +229,22 @@ class scoreLODHook(Hook):
                 self.old_lod = 4
             elif self.curr_lod < self.old_lod:
                 self.old_lod -= .1
+            elif self.curr_lod > self.old_lod:
+                self.old_lod += .01
 
         feeds[self.pl] = self.old_lod
 
 
     def after_step(self, batch_index, last_results):
         self.step = last_results["global_step"]
-        results = last_results["scoreLOD"]
-        self.scores = []
-        a = .005
-
+        results = last_results["lod_scalars"]
         for (key, value) in results.items():
-            self.results_log[key] = (1-a) * self.results_log[key] + a * np.mean(value)
-            #if len(self.results_log[key]) >= self.interval:
-                #self.results_log[key] = self.results_log[key][1:]
-            #self.scores.append(np.absolute(np.mean(self.results_log[key])+np.std(self.results_log[key])))
-            self.scores.append(np.absolute(self.results_log[key]))
+            self.results_log[key].append(value)
+            if len(self.results_log[key]) > self.interval:
+                self.results_log[key].pop(0)
+
+        if batch_index % self.interval == 0:
+            self.tb_logger.add_scalar(self.prefix+'abs_mean', self.m, step)
+            self.tb_logger.add_scalar(self.prefix+'std', self.s, step)
+            self.tb_logger.add_scalar(self.prefix+'score', self.score, step)
+            self.logger.info(f"score: {self.m} + {self.s} = {self.score}")

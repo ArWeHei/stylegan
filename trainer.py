@@ -48,14 +48,9 @@ class ListTrainer(TFListTrainer):
         self.hooks.append(ckpt_hook)
 
         lodhook = scoreLODHook(self.lod_in,
-                scalars = {k:v for k, v in self.s_ops.items() if k in ['scores/real', 'scores/fake']},
-            #schedule={
-            #    4:[     0,  15000],
-            #    3:[ 30000,  45000],
-            #    2:[ 60000,  75000],
-            #    1:[ 90000, 105000],
-            #    0:[120000,1000000],
-            #},
+            scalars = self.lod_scalar_ops,
+            root_path=ProjectManager.train,
+            summary_writer = tb_writer,
         )
         self.hooks.append(lodhook)
 
@@ -154,6 +149,8 @@ class ListTrainer(TFListTrainer):
         self.s_ops['losses/both'] = tf.reduce_mean(gen_loss+discr_loss)
         self.s_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
         self.s_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
+        self.lod_scalar_ops['fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
+        self.lod_scalar_ops['real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
 
         losses = []
         losses.append({"generator": gen_loss})
