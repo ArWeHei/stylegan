@@ -5,6 +5,8 @@ import os
 import time
 import sys
 
+from math import floor, ceil
+
 from edflow.hooks.hook import Hook
 from edflow.custom_logging import get_logger
 from edflow.util import pprint, linear_var
@@ -232,16 +234,18 @@ class scoreLODHook(Hook):
 
         self.get_lod_from_scores()
 
-        if self.step % self.interval == 0:
+        if int(self.old_lod) != self.old_lod:
+            self.old_lod = linear_var(self.step, self.start, self.start+10000, floor(self.old_lod), ceil(self.old_lod), floor(self.old_lod), ceil(self.old_lod))
+
+        elif self.step % self.interval == 0:
             #if self.curr_lod > self.old_lod:
             if self.step < 5000:
                 self.old_lod = 4
             elif self.curr_lod < self.old_lod:
-                self.old_lod -= .1
+                self.old_lod -= .01
+                self.start = self.step
             elif self.curr_lod > self.old_lod:
-                self.old_lod += .01
-            if self.old_lod > 4:
-                self.old_lod = 4
+                self.old_lod = self.old_lod
 
         feeds[self.pl] = self.old_lod
 
