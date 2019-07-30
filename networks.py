@@ -297,7 +297,7 @@ def D_basic(
     # Building blocks.
     def fromrgb(x, res): # res = 2..resolution_log2
         with tf.variable_scope('FromRGB_lod%d' % (resolution_log2 - res), reuse=tf.AUTO_REUSE):
-            return act(ops.apply_bias(ops.conv2d(x, fmaps=nf(res-1), kernel=1, gain=gain, use_wscale=use_wscale)))
+            return act(ops.apply_bias(ops.conv2d(tf.nn.atanh(x), fmaps=nf(res-1), kernel=1, gain=gain, use_wscale=use_wscale)))
     def block(x, res): # res = 2..resolution_log2
         with tf.variable_scope('%dx%d' % (2**res, 2**res)):
             if res >= 3: # 8x8 and up
