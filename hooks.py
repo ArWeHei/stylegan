@@ -205,8 +205,10 @@ class scoreLODHook(Hook):
         self.s = np.std([self.results_log[key] for key in self.keys])
         if (self.s < .5 and self.m < self.s):
             self.curr_lod = 0
-        else:
+        elif self.s > 2:
             self.curr_lod = 4
+        else:
+            self.curr_lod = self.old_lod
 
         #self.score = (self.m + self.s) / 2
 
