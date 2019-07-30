@@ -35,6 +35,8 @@ class ListTrainer(TFListTrainer):
 
         self.G_loss = 1
         self.D_loss = 1
+        self.G_count = 0
+        self.D_count = 0
 
         tb_writer = SummaryWriter(ProjectManager.train)
 
@@ -177,21 +179,29 @@ class ListTrainer(TFListTrainer):
     def run(self, fetches, feed_dict):
         #decide in run when to switch optimizers
         if self.D_loss/self.G_loss > 2:
-            train_idx = 1
-            fetches["d_steps"] = self.discr_steps
             self.curr_phase = 'discr'
         elif self.G_loss/self.D_loss > 2:
-            train_idx = 0
-            fetches["g_steps"] = self.gen_steps
             self.curr_phase = 'gen'
         elif self.curr_phase == 'discr':
-            train_idx = 0
-            fetches["g_steps"] = self.gen_steps
             self.curr_phase = 'gen'
         elif self.curr_phase == 'gen':
+            self.curr_phase = 'discr'
+
+        if G_count >= 10:
+            self.curr_phase = 'discr'
+        elif D_count >= 10:
+            self.curr_phase = 'gen'
+
+        if self.curr_phase == 'discr':
             train_idx = 1
             fetches["d_steps"] = self.discr_steps
-            self.curr_phase = 'discr'
+            self.D_count += 1
+            self.G_count = 0
+        elif self.curr_phase == 'gen':
+            train_idx = 0
+            fetches["g_steps"] = self.gen_steps
+            self.G_count += 1
+            self.D_count = 0
 
         fetches["step_ops"] = self.all_train_ops[train_idx]
 
