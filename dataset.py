@@ -13,6 +13,10 @@ def CelebA_w_Noise(config):
     p = lambda **kwargs: noise(config, **kwargs)
     return ProcessedDataset(CelebA(config), p)
 
+def Portraits_w_Noise(config):
+    p = lambda **kwargs: noise(config, **kwargs)
+    return ProcessedDataset(PortraitsFromWikiArt(config), p)
+
 def noise(config, **kwargs):
     latent_size = config.get('latent_size', 512) # Latent vector (Z) dimensionality.
     latents = np.random.randn(1, latent_size)

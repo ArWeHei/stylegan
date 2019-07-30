@@ -205,7 +205,7 @@ class scoreLODHook(Hook):
     def get_lod_from_scores(self):
         self.m = np.mean([self.results_log[key] for key in self.keys])
         self.s = np.std([self.results_log[key] for key in self.keys])
-        if (self.s < .5 and self.m < self.s):
+        if (self.s < 1 and self.m < self.s):
             self.curr_lod = 0
         elif self.s > 2:
             self.curr_lod = 4
@@ -235,7 +235,7 @@ class scoreLODHook(Hook):
         self.get_lod_from_scores()
 
         if int(self.old_lod) != self.old_lod:
-            self.old_lod = linear_var(self.step, self.start, self.start+10000, floor(self.old_lod), ceil(self.old_lod), floor(self.old_lod), ceil(self.old_lod))
+            self.old_lod = linear_var(self.step, self.start, self.start+10000, ceil(self.old_lod), floor(self.old_lod), floor(self.old_lod), ceil(self.old_lod))
 
         elif self.step % self.interval == 0:
             #if self.curr_lod > self.old_lod:
@@ -259,7 +259,7 @@ class scoreLODHook(Hook):
                 self.results_log[key].pop(0)
 
         if batch_index % self.interval == 0:
-            self.tb_logger.add_scalar(self.prefix+'abs_mean', self.m, self.step)
+            self.tb_logger.add_scalar(self.prefix+'mean', self.m, self.step)
             self.tb_logger.add_scalar(self.prefix+'std', self.s, self.step)
             #self.tb_logger.add_scalar(self.prefix+'score', self.score, self.step)
             self.tb_logger.add_scalar(self.prefix+'curr_lod', self.curr_lod, self.step)

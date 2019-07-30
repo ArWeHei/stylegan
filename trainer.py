@@ -187,9 +187,9 @@ class ListTrainer(TFListTrainer):
         elif self.curr_phase == 'gen':
             self.curr_phase = 'discr'
 
-        if G_count >= 10:
+        if self.G_count >= 10:
             self.curr_phase = 'discr'
-        elif D_count >= 10:
+        elif self.D_count >= 10:
             self.curr_phase = 'gen'
 
         if self.curr_phase == 'discr':
