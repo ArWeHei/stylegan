@@ -294,7 +294,7 @@ def D_basic(
     # Building blocks.
     def fromrgb(x, res): # res = 2..resolution_log2
         with tf.variable_scope('FromRGB_lod%d' % (resolution_log2 - res), reuse=tf.AUTO_REUSE):
-            return act(ops.apply_bias(ops.conv2d(tf.nn.atanh(x), fmaps=nf(res-1), kernel=1, gain=gain, use_wscale=use_wscale)))
+            return act(ops.apply_bias(ops.conv2d(x, fmaps=nf(res-1), kernel=1, gain=gain, use_wscale=use_wscale)))
     def block(x, res): # res = 2..resolution_log2
         with tf.variable_scope('%dx%d' % (2**res, 2**res)):
             if res >= 3: # 8x8 and up
@@ -357,6 +357,9 @@ def D_basic(
     if label_size:
         with tf.variable_scope('LabelSwitch'):
             #scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
+            print('====================================================')
+            print(scores_out)
+            print(labels_in)
             scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
 
     assert scores_out.dtype == tf.as_dtype(dtype)
@@ -430,8 +433,8 @@ def D_style(
     # Evaluate synthesis network.
     #with tf.control_dependencies([tf.assign(components['synthesis'].find_var('lod'), lod_in)]):
     with tf.variable_scope('D_synthesis'):
-        scores_out = components['synthesis'](images_in, dlatents, lod_in)
-    return tf.identity(images_out, name='images_out')
+        scores_out, scaled_imgs = components['synthesis'](images_in, dlatents, lod_in)
+    return tf.identity(scores_out, name='scores_out'), scaled_imgs
 
 
 def D_mapping(
@@ -487,13 +490,13 @@ def D_mapping(
     assert x.dtype == tf.as_dtype(dtype)
     return tf.identity(x, name='dlatents_out')
 
-def D_desynthesize(
+def D_synthesis(
     images_in,                          # First input: Images [minibatch, channel, height, width].
     dlatents_in,                          # Second input: Labels [minibatch, label_size].
     lod_in,
+    dlatent_size        = 512,          # Disentangled latent (W) dimensionality.
     num_channels        = 3,            # Number of input color channels. Overridden based on dataset.
     resolution          = 32,           # Input resolution. Overridden based on dataset.
-    label_size          = 0,            # Dimensionality of the labels, 0 if no labels. Overridden based on dataset.
     fmap_base           = 8192,         # Overall multiplier for the number of feature maps.
     fmap_decay          = 1.0,          # log2 feature map reduction when doubling the resolution.
     fmap_max            = 512,          # Maximum number of feature maps in any layer.
@@ -541,8 +544,6 @@ def D_desynthesize(
     def layer_prologue(x, layer_idx):
         if use_noise:
             x = ops.apply_noise(x, noise_inputs[layer_idx], randomize_noise=randomize_noise)
-        x = ops.apply_bias(x)
-        x = act(x)
         if use_pixel_norm:
             x = ops.pixel_norm(x)
         if use_instance_norm:
@@ -554,7 +555,7 @@ def D_desynthesize(
     # Building blocks.
     def fromrgb(x, res): # res = 2..resolution_log2
         with tf.variable_scope('FromRGB_lod%d' % (resolution_log2 - res), reuse=tf.AUTO_REUSE):
-            return act(ops.apply_bias(ops.conv2d(tf.nn.atanh(x), fmaps=nf(res-1), kernel=1, gain=gain, use_wscale=use_wscale)))
+            return act(ops.apply_bias(ops.conv2d(x, fmaps=nf(res-1), kernel=1, gain=gain, use_wscale=use_wscale)))
     def block(x, res): # res = 2..resolution_log2
         with tf.variable_scope('%dx%d' % (2**res, 2**res)):
             if res >= 3: # 8x8 and up
@@ -570,7 +571,7 @@ def D_desynthesize(
                 with tf.variable_scope('Dense0'):
                     x = act(ops.apply_bias(ops.dense(x, fmaps=nf(res-2), gain=gain, use_wscale=use_wscale)))
                 with tf.variable_scope('Dense1'):
-                    x = ops.apply_bias(ops.dense(x, fmaps=max(label_size, 1), gain=1, use_wscale=use_wscale))
+                    x = ops.apply_bias(ops.dense(x, fmaps=1, gain=1, use_wscale=use_wscale))
             return x
 
     # Fixed structure: simple and efficient, but does not support progressive growing.
@@ -612,12 +613,6 @@ def D_desynthesize(
 
         scores_out = grow(2, resolution_log2 - 2)
         scaled_img = d_scale(resolution_log2 - 2)
-
-    # Label conditioning from "Which Training Methods for GANs do actually Converge?"
-    if label_size:
-        with tf.variable_scope('LabelSwitch'):
-            #scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
-            scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
 
     assert scores_out.dtype == tf.as_dtype(dtype)
     scores_out = tf.identity(scores_out, name='scores_out')

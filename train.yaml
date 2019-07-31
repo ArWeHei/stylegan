@@ -4,10 +4,11 @@ dataset: stylegan.dataset.CelebAnPortraits_w_Noise
 #dataset: stylegan.dataset.Portraits_w_Noise
 model: stylegan.model.TrainModel
 iterator: stylegan.trainer.ListTrainer
-wikiart_dir: './artworks'
-balanced_datasets: False
+wikiart_dir: './wikiart'
+#wikiart_dir: './artworks'
+balanced_datasets: True
 
-batch_size: 16
+batch_size: 32
 num_steps: 1000000
 
 log_freq: 500

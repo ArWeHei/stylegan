@@ -37,6 +37,6 @@ def process_reals(x, lod, mirror_augment, drange_data, drange_net):
             factor = tf.cast(2 ** tf.floor(lod), tf.int32)
             x = tf.reshape(x, [-1, s[1], s[2], 1, s[3], 1])
             x = tf.tile(x, [1, 1, 1, factor, 1, factor])
-            x = tf.reshape(x, [32, s[1], s[2] * factor, s[3] * factor])
+            x = tf.reshape(x, [s[0], s[1], s[2] * factor, s[3] * factor])
         #x.set_shape([32, None, None, None])
         return x

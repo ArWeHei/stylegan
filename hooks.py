@@ -181,7 +181,7 @@ class scoreLODHook(Hook):
         else:
             self.tb_logger = summary_writer
 
-        self.results_log = {key:[] for key in self.keys}
+        self.results_log = {key:[10] for key in self.keys}
         self.prefix = 'lod/'
 
         layout = {'lod':{'scores':
@@ -219,11 +219,12 @@ class scoreLODHook(Hook):
         self.get_lod_from_scores()
 
         if int(self.old_lod) != self.old_lod:
-            self.old_lod = linear_var(self.step, self.start, self.start+10000, ceil(self.old_lod), floor(self.old_lod), floor(self.old_lod), ceil(self.old_lod))
+            end = self.start + 10000 * (4 - floor(self.old_lod))
+            self.old_lod = linear_var(self.step, self.start, end, ceil(self.old_lod), floor(self.old_lod), floor(self.old_lod), ceil(self.old_lod))
 
         elif self.step % self.interval == 0:
             if self.curr_lod < self.old_lod:
-                self.old_lod -= .001
+                self.old_lod -= .0001
                 self.start = self.step
             elif self.curr_lod > self.old_lod:
                 self.old_lod = self.old_lod

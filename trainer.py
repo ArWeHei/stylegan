@@ -149,7 +149,6 @@ class ListTrainer(TFListTrainer):
 
         self.s_ops['losses/gen'] = tf.reduce_mean(gen_loss)
         self.s_ops['losses/discr'] = tf.reduce_mean(discr_loss)
-        self.s_ops['losses/both'] = tf.reduce_mean(gen_loss+discr_loss)
         self.s_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
         self.s_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
         self.lod_scalar_ops['fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
@@ -158,7 +157,6 @@ class ListTrainer(TFListTrainer):
         losses = []
         losses.append({"generator": gen_loss})
         losses.append({"discriminator": discr_loss})
-        losses.append({"net": gen_loss+discr_loss})
 
         g = tf.Variable(0, name="gen_step")
         d = tf.Variable(0, name="discr_step")
@@ -187,9 +185,9 @@ class ListTrainer(TFListTrainer):
         elif self.curr_phase == 'gen':
             self.curr_phase = 'discr'
 
-        if self.G_count >= 10:
+        if self.G_count >= 5:
             self.curr_phase = 'discr'
-        elif self.D_count >= 10:
+        elif self.D_count >= 5:
             self.curr_phase = 'gen'
 
         if self.curr_phase == 'discr':

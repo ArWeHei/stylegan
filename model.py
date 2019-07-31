@@ -211,10 +211,11 @@ class adv_discriminator(object):
         #    self.labels_in = tf.placeholder(dtype=self.kwargs['dtype'],
         #                               shape=[None, None],
         #                               name='labels_in')
-        self.network = make_model(self.name, networks.D_style, **self.kwargs)
+        components = dict()
+        self.network = make_model(self.name, networks.D_style, components=components, **self.kwargs)
         #self.scores_out = self.network(self.images_in, self.labels_in)
 
-    def __call__(self, images_in, labels_in, latents_in, lod_in):
+    def __call__(self, images_in, latents_in, labels_in, lod_in):
         return self.network(images_in, latents_in, labels_in, lod_in)
 
     @property
@@ -227,7 +228,7 @@ class TrainModel(object):
     def __init__(self, config):
         self.config=config
         self.generator = generator(config)
-        self.discriminator = discriminator(config)
+        self.discriminator = adv_discriminator(config)
         #TODO:self.perceptor = VGGModel(config)
         self.variables = {
             'generator':self.generator.variables,
