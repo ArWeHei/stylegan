@@ -160,7 +160,7 @@ class adv_discriminator(object):
         self.kwargs['label_size']          = config.get('label_size',         0)            # Dimensionality of the labels, 0 if no labels. Overridden based on dataset.
         self.kwargs['fmap_base']           = config.get('fmap_base',          8192)         # Overall multiplier for the number of feature maps.
         self.kwargs['fmap_decay']          = config.get('fmap_decay',         1.0)          # log2 feature map reduction when doubling the resolution.
-        self.kwargs['fmap_max']            = config.get('fmap_max',           512)          # Maximum number of feature maps in any layer.
+        self.kwargs['fmap_max']            = config.get('fmap_max',           128)          # Maximum number of feature maps in any layer.
         self.kwargs['nonlinearity']        = config.get('nonlinearity',       'lrelu')      # Activation function: 'relu', 'lrelu',
         self.kwargs['use_wscale']          = config.get('use_wscale',         True)         # Enable equalized learning rate?
         self.kwargs['mbstd_group_size']    = config.get('mbstd_group_size',   4)            # Group size for the minibatch standard deviation layer, 0 = disable.
@@ -174,19 +174,18 @@ class adv_discriminator(object):
         self.kwargs['truncation_cutoff']   = config.get('truncation_cutoff',      8)     # Number of layers for which to apply the truncation trick. None = disable.
         self.kwargs['dlatent_avg_beta']    = config.get('dlatent_avg_beta',       0.995) # Decay for tracking the moving average of W during training. None = disable.
         self.kwargs['style_mixing_prob']   = config.get('style_mixing_prob',      0.9)   # Probability of mixing styles during training. None = disable.
-        self.kwargs['dlatent_size']        = config.get('dlatent_size',           512)          # Disentangled latent (W) dimensionality.
+        self.kwargs['dlatent_size']        = config.get('dlatent_size',           128)          # Disentangled latent (W) dimensionality.
         self.kwargs['num_layers']          = config.get('num_channels',           3)            # Number of output color channels.
 
-        self.kwargs['latent_size']             = config.get('latent_size',          512)          # Latent vector (Z) dimensionality.
-        self.kwargs['mapping_layers']          = config.get('mapping_layers',       8)            # Number of mapping layers.
-        self.kwargs['mapping_fmaps']           = config.get('mapping_fmaps',        512)          # Number of activations in the mapping layers.
+        self.kwargs['latent_size']             = config.get('latent_size',          128)          # Latent vector (Z) dimensionality.
+        self.kwargs['mapping_layers']          = config.get('mapping_layers',       4)            # Number of mapping layers.
+        self.kwargs['mapping_fmaps']           = config.get('mapping_fmaps',        128)          # Number of activations in the mapping layers.
         self.kwargs['mapping_lrmul']           = config.get('mapping_lrmul',        0.01)         # Learning rate multiplier for the mapping layers.
         self.kwargs['mapping_nonlinearity']    = config.get('mapping_nonlinearity', 'lrelu')      # Activation function: 'relu', 'lrelu'.
         self.kwargs['normalize_latents']       = config.get('normalize_latents',    True)         # Normalize latent vectors (Z) before feeding them to the mapping layers?
         self.kwargs['use_styles']          = config.get('use_styles',         True)         # Enable style inputs?
-        self.kwargs['const_input_layer']   = config.get('const_input_layer',  True)         # First layer is a learned constant?
-        self.kwargs['use_noise']           = config.get('use_noise',          True)         # Enable noise inputs?
-        self.kwargs['randomize_noise']     = config.get('randomize_noise',    True)         # True = randomize noise inputs every time (non-deterministic), False = read noise inputs from variables.
+        self.kwargs['use_noise']           = config.get('use_noise',          False)         # Enable noise inputs?
+        self.kwargs['randomize_noise']     = config.get('randomize_noise',    False)         # True = randomize noise inputs every time (non-deterministic), False = read noise inputs from variables.
         self.kwargs['nonlinearity']        = config.get('nonlinearity',       'lrelu')      # Activation function: 'relu', 'lrelu'
         self.kwargs['use_pixel_norm']      = config.get('use_pixel_norm',     False)        # Enable pixelwise feature vector normalization?
         self.kwargs['use_instance_norm']   = config.get('use_instance_norm',  True)         # Enable instance normalization?

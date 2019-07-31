@@ -111,10 +111,10 @@ class ListTrainer(TFListTrainer):
         eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
         self.img_ops['eval'] = eval_images_out
 
-        fake_scores_out, _ = self.model.discriminate(images_out, latents_in, labels_in, lod_in)
+        fake_scores_out, _ = self.model.discriminate(images_out, latents_in[:,:128], labels_in, lod_in)
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
 
-        real_scores_out, real_scaled = self.model.discriminate(images_in, latents_in, labels_in, lod_in)
+        real_scores_out, real_scaled = self.model.discriminate(images_in, latents_in[:,:128], labels_in, lod_in)
 
         self.model.outputs = {
             'images_out': images_out,
@@ -176,30 +176,21 @@ class ListTrainer(TFListTrainer):
 
     def run(self, fetches, feed_dict):
         #decide in run when to switch optimizers
-        if self.D_loss/self.G_loss > 2:
-            self.curr_phase = 'discr'
-        elif self.G_loss/self.D_loss > 2:
-            self.curr_phase = 'gen'
-        elif self.curr_phase == 'discr':
+        #if self.D_loss/self.G_loss > 16:
+        #    self.curr_phase = 'discr'
+        #elif self.G_loss/self.D_loss > 16:
+        #    self.curr_phase = 'gen'
+        if self.curr_phase == 'discr':
             self.curr_phase = 'gen'
         elif self.curr_phase == 'gen':
             self.curr_phase = 'discr'
-
-        if self.G_count >= 100:
-            self.curr_phase = 'discr'
-        elif self.D_count >= 100:
-            self.curr_phase = 'gen'
 
         if self.curr_phase == 'discr':
             train_idx = 1
             fetches["d_steps"] = self.discr_steps
-            self.D_count += 1
-            self.G_count = 0
         elif self.curr_phase == 'gen':
             train_idx = 0
             fetches["g_steps"] = self.gen_steps
-            self.G_count += 1
-            self.D_count = 0
 
         fetches["step_ops"] = self.all_train_ops[train_idx]
 
