@@ -600,9 +600,12 @@ def D_synthesis(
         def cset(cur_lambda, new_cond, new_lambda):
             return lambda: tf.cond(new_cond, new_lambda, cur_lambda)
         def grow(res, lod):
+            #this line....
             x = lambda: fromrgb(ops.downscale2d(images_in, 2**lod), res)
             if lod > 0: x = cset(x, (lod_in < lod), lambda: grow(res + 1, lod - 1))
             x = block(x(), res); y = lambda: x
+            #modify s.t. there is no fading in the discriminator
+            #....and this line do not correlate enough. The network is fed with unknown weigths > bad
             if res > 2: y = cset(y, (lod_in > lod), lambda: util.lerp(x, fromrgb(ops.downscale2d(images_in, 2**(lod+1)), res - 1), lod_in - lod))
             return y()
         def d_scale(lod):

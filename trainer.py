@@ -140,7 +140,8 @@ class ListTrainer(TFListTrainer):
     def make_loss_ops(self):
         self.define_connections()
 
-        gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out']-self.model.scores['real_scores_out'])
+        #gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out']-self.model.scores['real_scores_out'])
+        gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
@@ -182,17 +183,30 @@ class ListTrainer(TFListTrainer):
         #    self.curr_phase = 'discr'
         #elif self.G_loss/self.D_loss > 16:
         #    self.curr_phase = 'gen'
-        if self.curr_phase == 'discr':
+        if self.D_loss > self.G_loss:
+            if self.curr_phase == 'discr':
+        elif self.curr_phase == 'discr':
             self.curr_phase = 'gen'
         elif self.curr_phase == 'gen':
             self.curr_phase = 'discr'
 
+        if self.G_count >= 2:
+            self.curr_phase = 'discr'
+        elif self.D_count >= 2:
+            self.curr_phase = 'gen'
+
         if self.curr_phase == 'discr':
             train_idx = 1
             fetches["d_steps"] = self.discr_steps
+            self.D_count += 1
+            self.G_count = 0
         elif self.curr_phase == 'gen':
             train_idx = 0
             fetches["g_steps"] = self.gen_steps
+            self.G_count += 1
+            self.D_count = 0
+
+        self.old_phase = self.curr_phase
 
         fetches["step_ops"] = self.all_train_ops[train_idx]
 
