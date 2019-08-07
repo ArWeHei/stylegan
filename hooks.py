@@ -115,12 +115,13 @@ class LODHook(Hook):
         self,
         placeholder,
         schedule={
-            4:[     0,  40000],
-            3:[ 90000, 180000],
-            2:[300000, 400000],
-            1:[500000, 600000],
-            0:[700000, 800000],
+            4:[     0,  10000],
+            3:[ 20000,  40000],
+            2:[ 80000, 160000],
+            1:[320000, 640000],
+            0:[1000000, 1000000],
         },
+        **kwargs
     ):
         self.schedule = schedule
         tmp = [[k, x] for (k, l) in schedule.items() for x in l]
@@ -157,11 +158,11 @@ class scoreLODHook(Hook):
         scalars,
         interval=1000,
         schedule={
-            0:.025,
-            1:.05,
-            2:.10,
-            3:.25,
-            4:.5,
+            0:.05,
+            1:.1,
+            2:.25,
+            3:.5,
+            4:1,
         },
         root_path="logs",
         summary_writer=None,

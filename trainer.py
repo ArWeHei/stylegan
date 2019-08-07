@@ -50,7 +50,7 @@ class ListTrainer(TFListTrainer):
             )
         self.hooks.append(ckpt_hook)
 
-        lodhook = scoreLODHook(self.lod_in,
+        lodhook = LODHook(self.lod_in,
             scalars = self.lod_scalar_ops,
             root_path=ProjectManager.train,
             summary_writer = tb_writer,
