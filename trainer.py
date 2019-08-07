@@ -81,9 +81,12 @@ class ListTrainer(TFListTrainer):
 
         with tf.name_scope('placeholder'):
             dtype = self.config.get('dtype', tf.float32)
-            latents_in = tf.placeholder(dtype=dtype,
+            latents_in_1 = tf.placeholder(dtype=dtype,
                                         shape=[batch_size, None],
-                                        name='latents_in')
+                                        name='latents_in_1')
+            latents_in_2 = tf.placeholder(dtype=dtype,
+                                        shape=[batch_size, None],
+                                        name='latents_in_2')
             features_vec = tf.placeholder(dtype=dtype,
                                        shape=[batch_size, None],
                                        name='features_vec')
@@ -111,29 +114,34 @@ class ListTrainer(TFListTrainer):
         #eval_lab_in = tf.constant(eval_lab_in)
 
 
-        images_out = self.model.generate(latents_in, labels_in, lod_in)
+        images_out_1 = self.model.generate(latents_in_1, labels_in, lod_in)
+        images_out_2 = self.model.generate(latents_in_2, labels_in, lod_in)
         eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
         #self.img_ops['eval'] = eval_images_out
 
-        fake_scores_out, fake_scaled = self.model.discriminate(images_out, latents_in[:,:128], labels_in, lod_in)
+        fake_scores_out_1, fake_scaled_1 = self.model.discriminate(images_out_1, latents_in[:,:128], labels_in, lod_in)
+        fake_scores_out_2, fake_scaled_2 = self.model.discriminate(images_out_2, latents_in[:,:128], labels_in, lod_in)
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
 
         real_scores_out, real_scaled = self.model.discriminate(images_in, latents_in[:,:128], labels_in, lod_in)
 
         self.model.outputs = {
-            'images_out': images_out,
+            'images_out_1': images_out_1,
+            'images_out_2': images_out_2,
             'scaled_images':real_scaled,
             'fake_scaled_images':fake_scaled,
             }
 
         self.model.scores = {
-            'fake_scores_out': fake_scores_out,
+            'fake_scores_out_1': fake_scores_out_1,
+            'fake_scores_out_2': fake_scores_out_2,
             'real_scores_out': real_scores_out,
             }
 
         #self.model.inputs = {'latent':latents_in, 'feature_vec':labels_in, 'image':images_in}
         self.model.inputs = {
-            'latent':latents_in,
+            'latent1':latents_in_1,
+            'latent2':latents_in_2,
             'feature_vec':features_vec,
             'painted':painted,
             'image':images_in,
@@ -145,21 +153,30 @@ class ListTrainer(TFListTrainer):
     def make_loss_ops(self):
         self.define_connections()
 
-        #gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out']-self.model.scores['real_scores_out'])
-        gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
-        discr_loss = D_logistic(
+        #gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out_1'])
+        #discr_loss = D_logistic(
+        #    self.model.scores['real_scores_out'],
+        #    self.model.scores['fake_scores_out_1'])
+        gen_loss = G_cramer(
             self.model.scores['real_scores_out'],
-            self.model.scores['fake_scores_out'])
+            self.model.scores['fake_scores_out_1'],
+            self.model.scores['fake_scores_out_2'],
+            )
+        #discr_loss = D_cramer(
+        #    self.model.scores['real_scores_out'],
+        #    self.model.scores['fake_scores_out_1'],
+        #    )
+        discr_loss = -gen_loss
 
-        self.img_ops['fake'] = self.model.outputs['images_out']
+        self.img_ops['fake'] = self.model.outputs['images_out_1']
         self.img_ops['real'] = self.model.outputs['scaled_images']
         self.img_ops['fake_scaled'] = self.model.outputs['fake_scaled_images']
 
         self.s_ops['losses/gen'] = tf.reduce_mean(gen_loss)
         self.s_ops['losses/discr'] = tf.reduce_mean(discr_loss)
-        self.s_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
+        self.s_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out_1'])
         self.s_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
-        self.lod_scalar_ops['fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
+        self.lod_scalar_ops['fake'] = tf.reduce_mean(self.model.scores['fake_scores_out_1'])
         self.lod_scalar_ops['real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
 
         losses = []
@@ -183,14 +200,9 @@ class ListTrainer(TFListTrainer):
     #    return result
 
     def run(self, fetches, feed_dict):
-        #decide in run when to switch optimizers
-        #if self.D_loss/self.G_loss > 16:
-        #    self.curr_phase = 'discr'
-        #elif self.G_loss/self.D_loss > 16:
-        #    self.curr_phase = 'gen'
-        #if self.D_loss > self.G_loss:
-        #    self.curr_phase = 'gen'
-        if self.curr_phase == 'discr':
+        if self.D_loss > self.G_loss:
+            if self.curr_phase == 'discr':
+        elif self.curr_phase == 'discr':
             self.curr_phase = 'gen'
         elif self.curr_phase == 'gen':
             self.curr_phase = 'discr'

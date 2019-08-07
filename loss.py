@@ -155,3 +155,14 @@ def D_logistic_simplegp(fake_images_out, fake_scores_out, real_scores_out, opt, 
     return loss
 
 #----------------------------------------------------------------------------
+def G_cramer(real_scores, fake_scores1, fake_scores2): # pylint: disable=unused-argument
+    D1 = tf.norm(real_scores - fake_scores1, axis=1)
+    D2 = tf.norm(real_scores - fake_scores2, axis=1)
+    D3 = tf.norm(fake_scores1 - fake_scores2, axis=1)
+    loss = tf.nn.softplus(D1 + D2 - D3)  # -log(logistic(fake_scores_out))
+    return loss
+
+
+
+
+
