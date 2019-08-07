@@ -103,7 +103,7 @@ class PortraitsFromWikiArt(DatasetMixin):
         glob_pattern = os.path.join(celeba_dir, '*.jpg')
         self.image_filepaths = sorted(glob.glob(glob_pattern))
         hdf_path = config.get('hdf', './artworks/art_faces_info.hdf5')
-        self.attributes_df = pd.read_hdf(hdf_path), index_col='image_id')
+        self.attributes_df = pd.read_hdf(hdf_path)
         #if len(self.image_filepaths) != expected_images:
             #error('Expected to find %d images' % expected_images)
 
@@ -153,19 +153,8 @@ class MergedDataset(DatasetMixin):
                     )
         self.lengths = [len(d) for d in self.datasets]
         self.boundaries = np.cumsum(self.lengths)
-        self.feature_shape = 
 
-   @property
-   def shape(self):
-        shapes = dict(self.datasets[0].shape)
-        for i in range(1, len(self.datasets)):
-            new_shapes = self.datasets[i].shape
-            for k, v in shapes.keys():
-                shapes[k] = shapes[k] + new_shapes[k]
-                del new_shapes[k]
-            shapes.update(new_shapes)
-
-   def get_example(self, i):
+    def get_example(self, i):
         """Get example and add dataset index to it."""
         did = np.where(i < self.boundaries)[0][0]
         if did > 0:
