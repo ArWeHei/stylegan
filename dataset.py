@@ -50,7 +50,7 @@ def Merged_CelebAnPortraits(config):
     balanced = config.get('balanced_datasets', False)
     return MergedDataset(CelebA(config), PortraitsFromWikiArt(config), balanced=balanced)
 
-def MergedCelebAnPortraits_w_Noise(config):
+def Merged_CelebAnPortraits_w_Noise(config):
     p = lambda **kwargs: noise(config, **kwargs)
     return ProcessedDataset(Merged_CelebAnPortraits(config), p)
 
@@ -91,7 +91,7 @@ class CelebA(DatasetMixin):
         return example
 
     def get_empty_example(self):
-        example = {'feature_vec':np.zeros(40)}
+        example = {'feature_vec':np.ones(1)}
         return example
 
 
@@ -105,6 +105,7 @@ class PortraitsFromWikiArt(DatasetMixin):
         self.image_filepaths = sorted(glob.glob(glob_pattern))
         hdf_path = config.get('hdf', './artworks/art_faces_info.hdf5')
         self.attributes_df = pd.read_hdf(hdf_path)
+        self.attributes_df = self.attributes_df['year']
         #if len(self.image_filepaths) != expected_images:
             #error('Expected to find %d images' % expected_images)
 
@@ -122,10 +123,11 @@ class PortraitsFromWikiArt(DatasetMixin):
         idx_filename =  image_filename.split('-')[0]
 
         img = np.asarray(PIL.Image.open(image_filepath))
-        features = self.attributes_df.loc[idx_filename,:].to_list()
-        print(features)
-        features_vec = np.array([val for val in features.values()])
-        features_vec = features_vec / 500 * 2 -1 #years range from 1500-2000
+        features = self.attributes_df.loc[int(idx_filename)]
+        if np.isnan(features):
+            features = 2000
+        features_vec = np.array([features])
+        features_vec = (features_vec-1500) / 500 * 2 -1 #years range from 1500-2000
         assert img.shape == (218, 218, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
@@ -133,7 +135,7 @@ class PortraitsFromWikiArt(DatasetMixin):
         return example
 
     def get_empty_example(self):
-        example = {'feature_vec':np.ones(1)}
+        example = {'feature_vec':np.zeros(40)}
         return example
 
 class MergedDataset(DatasetMixin):
@@ -158,6 +160,7 @@ class MergedDataset(DatasetMixin):
 
     def get_example(self, i):
         """Get example and add dataset index to it."""
+        example = {}
         did = np.where(i < self.boundaries)[0][0]
         if did > 0:
             local_i = i - self.boundaries[did - 1]
