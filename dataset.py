@@ -83,6 +83,7 @@ class CelebA(DatasetMixin):
         img = np.asarray(PIL.Image.open(image_filepath))
         features = self.attributes_df.loc[image_filename,:].to_dict()
         features_vec = np.array([val for val in features.values()])
+        features_vec = features_vec*2 - 1
         assert img.shape == (218, 178, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
@@ -103,9 +104,7 @@ class PortraitsFromWikiArt(DatasetMixin):
         glob_pattern = os.path.join(celeba_dir, '*.jpg')
         self.image_filepaths = sorted(glob.glob(glob_pattern))
         hdf_path = config.get('hdf', './artworks/art_faces_info.hdf5')
-        self.attributes_df = pd.read_hdf(hdf_path), index_col='image_id')
-        #if len(self.image_filepaths) != expected_images:
-            #error('Expected to find %d images' % expected_images)
+        self.attributes_df = pd.read_hdf(hdf_path), columns=['index', 'year'])
 
     def __name__(self):
         return "Art_Faces"
@@ -124,6 +123,7 @@ class PortraitsFromWikiArt(DatasetMixin):
         features = self.attributes_df.loc[idx_filename,:].to_list()
         print(features)
         features_vec = np.array([val for val in features.values()])
+        features_vec = features_vec / 500 * 2 -1 #years range from 1500-2000
         assert img.shape == (218, 218, 3)
         img = img[cy - 64 : cy + 64, cx - 64 : cx + 64]
         img = img.transpose(2, 0, 1) # HWC => CHW
@@ -131,7 +131,7 @@ class PortraitsFromWikiArt(DatasetMixin):
         return example
 
     def get_empty_example(self):
-        example = {'feature_vec':np.zeros(1)}
+        example = {'feature_vec':np.ones(1)}
         return example
 
 class MergedDataset(DatasetMixin):
