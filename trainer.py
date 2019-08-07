@@ -84,7 +84,10 @@ class ListTrainer(TFListTrainer):
             latents_in = tf.placeholder(dtype=dtype,
                                         shape=[batch_size, None],
                                         name='latents_in')
-            labels_in = tf.placeholder(dtype=dtype,
+            features_vec = tf.placeholder(dtype=dtype,
+                                       shape=[batch_size, None],
+                                       name='labels_in')
+            painted = tf.placeholder(dtype=dtype,
                                        shape=[batch_size, None],
                                        name='labels_in')
             images_in = tf.placeholder(dtype=dtype,
@@ -99,10 +102,10 @@ class ListTrainer(TFListTrainer):
         self.s_ops['lod'] = lod_in
         self.lod_in = lod_in
 
+        labels_in = tf.concat([features_vec, painted], axis=1)
+
         eval_lat_in = np.repeat(np.random.standard_normal((batch_size//2, 512)), 2, axis=0)
         eval_lab_in = np.tile([[1,0], [0,1]], (batch_size//2, 1))
-        self.logger.info(eval_lat_in.shape)
-        self.logger.info(eval_lab_in.shape)
         eval_lat_in = tf.constant(eval_lat_in)
         eval_lab_in = tf.constant(eval_lab_in)
 
@@ -130,7 +133,8 @@ class ListTrainer(TFListTrainer):
         #self.model.inputs = {'latent':latents_in, 'feature_vec':labels_in, 'image':images_in}
         self.model.inputs = {
             'latent':latents_in,
-            'painted':labels_in,
+            'features_vec':features_vec,
+            'painted':painted,
             'image':images_in,
             'lod':lod_in
             }
