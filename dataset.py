@@ -93,17 +93,14 @@ class CelebA(DatasetMixin):
         example = {'feature_vec':np.zeros(40)}
         return example
 
-    @property
-    def shape(self):
-        return {'image':(128, 128, 3), 'painted':(3), 'feature_vec':(40), 'idx':(1)}
 
 class PortraitsFromWikiArt(DatasetMixin):
     #returns 128x128 images from WikiartsPortraits
     def __init__(self, config):
-        celeba_dir = config.get('wikiart_dir', './artworks')
+        celeba_dir = config.get('art_dir', './artworks/portrait_align')
         self.logger = get_logger(self)
         self.logger.info('Loading portraits from "%s"' % celeba_dir)
-        glob_pattern = os.path.join(celeba_dir, 'portrait_align', '*.jpg')
+        glob_pattern = os.path.join(celeba_dir, '*.jpg')
         self.image_filepaths = sorted(glob.glob(glob_pattern))
         hdf_path = config.get('hdf', './artworks/art_faces_info.hdf5')
         self.attributes_df = pd.read_hdf(hdf_path), index_col='image_id')

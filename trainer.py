@@ -187,9 +187,9 @@ class ListTrainer(TFListTrainer):
         #    self.curr_phase = 'discr'
         #elif self.G_loss/self.D_loss > 16:
         #    self.curr_phase = 'gen'
-        if self.D_loss > self.G_loss:
-            if self.curr_phase == 'discr':
-        elif self.curr_phase == 'discr':
+        #if self.D_loss > self.G_loss:
+        #    self.curr_phase = 'gen'
+        if self.curr_phase == 'discr':
             self.curr_phase = 'gen'
         elif self.curr_phase == 'gen':
             self.curr_phase = 'discr'

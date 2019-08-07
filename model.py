@@ -141,8 +141,8 @@ class discriminator(object):
         self.network = make_model(self.name, networks.D_basic, **self.kwargs)
         #self.scores_out = self.network(self.images_in, self.labels_in)
 
-    def __call__(self, images_in, labels_in, lod_in):
-        return self.network(images_in, labels_in, lod_in)
+    def __call__(self, images_in, labels_in, lod_in, **kwargs):
+        return self.network(images_in, labels_in, lod_in, **kwargs)
 
     @property
     def variables(self):
@@ -227,19 +227,21 @@ class TrainModel(object):
     def __init__(self, config):
         self.config=config
         self.generator = generator(config)
-        self.discriminator = adv_discriminator(config)
-        #TODO:self.perceptor = VGGModel(config)
+        #self.discriminator = adv_discriminator(config)
+        self.discriminator = discriminator(config)
         self.variables = {
             'generator':self.generator.variables,
             'discriminator':self.discriminator.variables,
-            'net':self.all_variables,
         }
 
     def generate(self, latents_in, labels_in, lod_in):
         return self.generator(latents_in, labels_in, lod_in)
 
     def discriminate(self, images_in, latents_in, labels_in, lod_in):
-        return self.discriminator(images_in, latents_in, labels_in, lod_in)
+        return self.discriminator(images_in=images_in,
+                                  latents_in=latents_in,
+                                  labels_in=labels_in,
+                                  lod_in=lod_in)
 
     @property
     def all_variables(self):
