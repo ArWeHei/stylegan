@@ -1,0 +1,9 @@
+dataset: stylegan.no_datasets.MNISTnSVHN_w_Noise
+model: stylegan.model.TrainModel
+iterator: stylegan.trainer.ListTrainer
+
+balanced_datasets: True
+
+label_size: 3
+resolution: 32
+
