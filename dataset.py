@@ -10,17 +10,21 @@ import numpy as np
 import pandas as pd
 
 def CelebA_w_Noise(config):
-    p = lambda **kwargs: noise(config, **kwargs)
+    p = lambda **kwargs: noise(config, suffix='1', **kwargs)
     return ProcessedDataset(CelebA(config), p)
+
+def CelebA_w_2Noise(config):
+    p = lambda **kwargs: noise(config, suffix='2', **kwargs)
+    return ProcessedDataset(CelebA_w_Noise(config), p)
 
 def Portraits_w_Noise(config):
     p = lambda **kwargs: noise(config, **kwargs)
     return ProcessedDataset(PortraitsFromWikiArt(config), p)
 
-def noise(config, **kwargs):
+def noise(config, suffix='', **kwargs):
     latent_size = config.get('latent_size', 512) # Latent vector (Z) dimensionality.
     latents = np.random.randn(1, latent_size)
-    return {'latent':latents[0], **kwargs}
+    return {'latent'+suffix:latents[0], **kwargs}
 
 def CelebAnPortraits(config):
     balanced = config.get('balanced_datasets', False)

@@ -10,7 +10,7 @@ from edflow.project_manager import ProjectManager
 from edflow.tf_util import make_linear_var
 
 
-from .loss import G_logistic_nonsaturating, D_logistic
+from .loss import G_logistic_nonsaturating, D_logistic, G_cramer
 from .misc import process_reals
 from .hooks import *
 import stylegan.ops as op
@@ -119,17 +119,17 @@ class ListTrainer(TFListTrainer):
         eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
         #self.img_ops['eval'] = eval_images_out
 
-        fake_scores_out_1, fake_scaled_1 = self.model.discriminate(images_out_1, latents_in[:,:128], labels_in, lod_in)
-        fake_scores_out_2, fake_scaled_2 = self.model.discriminate(images_out_2, latents_in[:,:128], labels_in, lod_in)
+        fake_scores_out_1, fake_scaled_1 = self.model.discriminate(images_out_1, latents_in_1[:,:128], labels_in, lod_in)
+        fake_scores_out_2, fake_scaled_2 = self.model.discriminate(images_out_2, latents_in_1[:,:128], labels_in, lod_in)
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
 
-        real_scores_out, real_scaled = self.model.discriminate(images_in, latents_in[:,:128], labels_in, lod_in)
+        real_scores_out, real_scaled = self.model.discriminate(images_in, latents_in_1[:,:128], labels_in, lod_in)
 
         self.model.outputs = {
             'images_out_1': images_out_1,
             'images_out_2': images_out_2,
             'scaled_images':real_scaled,
-            'fake_scaled_images':fake_scaled,
+            'fake_scaled_images':fake_scaled_1,
             }
 
         self.model.scores = {
@@ -154,9 +154,13 @@ class ListTrainer(TFListTrainer):
         self.define_connections()
 
         #gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out_1'])
-        #discr_loss = D_logistic(
-        #    self.model.scores['real_scores_out'],
-        #    self.model.scores['fake_scores_out_1'])
+        discr_loss = D_logistic(
+            self.model.scores['real_scores_out'],
+            self.model.scores['fake_scores_out_1']) +\
+            D_logistic(
+            self.model.scores['real_scores_out'],
+            self.model.scores['fake_scores_out_2'])
+
         gen_loss = G_cramer(
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out_1'],
@@ -166,7 +170,7 @@ class ListTrainer(TFListTrainer):
         #    self.model.scores['real_scores_out'],
         #    self.model.scores['fake_scores_out_1'],
         #    )
-        discr_loss = -gen_loss
+        #discr_loss = -gen_loss
 
         self.img_ops['fake'] = self.model.outputs['images_out_1']
         self.img_ops['real'] = self.model.outputs['scaled_images']
@@ -201,7 +205,7 @@ class ListTrainer(TFListTrainer):
 
     def run(self, fetches, feed_dict):
         if self.D_loss > self.G_loss:
-            if self.curr_phase == 'discr':
+            self.curr_phase = 'gen'
         elif self.curr_phase == 'discr':
             self.curr_phase = 'gen'
         elif self.curr_phase == 'gen':
