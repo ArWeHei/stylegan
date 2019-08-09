@@ -368,7 +368,6 @@ def D_basic(
 
 def D_style(
     images_in,
-    latents_in,                             # First input: Latent vectors (Z) [minibatch, latent_size].
     labels_in,                              # Second input: Conditioning labels [minibatch, label_size].
     lod_in,
     truncation_psi          = 0.7,          # Style strength multiplier for the truncation trick. None = disable.
@@ -376,7 +375,6 @@ def D_style(
     truncation_psi_val      = None,         # Value for truncation_psi to use during validation.
     truncation_cutoff_val   = None,         # Value for truncation_cutoff to use during validation.
     dlatent_avg_beta        = 0.995,        # Decay for tracking the moving average of W during training. None = disable.
-    style_mixing_prob       = 0.9,          # Probability of mixing styles during training. None = disable.
     components              = None,         # Container for sub-networks. Retained between calls.
     dlatent_size            = 512,          # Disentangled latent (W) dimensionality.
     resolution              = 128,          # Output resolution
@@ -390,7 +388,7 @@ def D_style(
         components['synthesis'] = lambda images_in, dlatents, lod_in: obj0(images_in, dlatents, lod_in, resolution=resolution, dlatent_size=dlatent_size, **kwargs)
     if 'mapping' not in components:
         obj1 = globals()['D_mapping']
-        components['mapping'] = lambda latents_in, labels_in: obj1(latents_in, labels_in, dlatent_size=dlatent_size, dlatent_broadcast=num_layers, **kwargs)
+        components['mapping'] = lambda labels_in: obj1(labels_in, dlatent_size=dlatent_size, dlatent_broadcast=num_layers, **kwargs)
 
     # Setup variables.
     #lod_in = tf.get_variable('lod', initializer=np.float32(0), trainable=False)
@@ -398,7 +396,7 @@ def D_style(
 
     # Evaluate mapping network.
     with tf.variable_scope('D_mapping'):
-        dlatents = components['mapping'](latents_in, labels_in)
+        dlatents = components['mapping'](labels_in)
 
     # Update moving average of W.
     if dlatent_avg_beta is not None:
@@ -407,20 +405,6 @@ def D_style(
             update_op = tf.assign(dlatent_avg, util.lerp(batch_avg, dlatent_avg, dlatent_avg_beta))
             with tf.control_dependencies([update_op]):
                 dlatents = tf.identity(dlatents)
-
-    # Perform style mixing regularization.
-    if 0:#if style_mixing_prob is not None:
-        with tf.name_scope('StyleMix'):
-            latents2 = tf.random_normal(tf.shape(latents_in))
-            with tf.variable_scope('D_mapping', reuse=True):
-                dlatents2 = components['mapping'](latents2, labels_in)
-            layer_idx = np.arange(num_layers)[np.newaxis, :, np.newaxis]
-            cur_layers = num_layers - tf.cast(lod_in, tf.int32) * 2
-            mixing_cutoff = tf.cond(
-                tf.random_uniform([], 0.0, 1.0) < style_mixing_prob,
-                lambda: tf.random_uniform([], 1, cur_layers, dtype=tf.int32),
-                lambda: cur_layers)
-            dlatents = tf.where(tf.broadcast_to(layer_idx < mixing_cutoff, tf.shape(dlatents)), dlatents, dlatents2)
 
     # Apply truncation trick.
     if truncation_psi is not None and truncation_cutoff is not None:

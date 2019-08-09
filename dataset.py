@@ -1,4 +1,4 @@
-from edflow.data.dataset import DatasetMixin, ProcessedDataset, ConcatenatedDataset, CachedDataset, cachable
+from edflow.data.dataset import DatasetMixin, ProcessedDataset, ConcatenatedDataset, CachedDataset, cachable, SubDataset
 from edflow.custom_logging import get_logger
 from edflow.util import pprint
 
@@ -152,9 +152,11 @@ class MergedDataset(DatasetMixin):
                 data_length = len(self.datasets[data_idx])
                 if data_length != max_length:
                     cycle_indices = [i % data_length for i in range(max_length)]
+                    get_empty_example = self.datasets[data_idx].get_empty_example
                     self.datasets[data_idx] = SubDataset(
                         self.datasets[data_idx], cycle_indices
                     )
+                    self.datasets[data_idx].get_empty_example = get_empty_example
         self.lengths = [len(d) for d in self.datasets]
         self.boundaries = np.cumsum(self.lengths)
 

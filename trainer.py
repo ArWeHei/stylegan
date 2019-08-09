@@ -102,18 +102,19 @@ class ListTrainer(TFListTrainer):
         self.s_ops['lod'] = lod_in
         self.lod_in = lod_in
 
-        labels_in = tf.concat([features_vec, painted], axis=1)
+        #labels_in = tf.concat([features_vec, painted], axis=1)
+        labels_in = painted
+        images_out = self.model.generate(latents_in, labels_in, lod_in)
 
         eval_lat_in = np.repeat(np.random.standard_normal((batch_size//2, 512)), 2, axis=0)
-        #eval_lab_in = np.tile([[1,0], [0,1]], (batch_size//2, 1))
-        eval_lab_in = labels_in
         eval_lat_in = tf.constant(eval_lat_in)
-        #eval_lab_in = tf.constant(eval_lab_in)
+        eval_painted = np.tile([[1,0,1], [0,1,-1]], (batch_size//2, 1))
+        eval_painted = tf.constant(eval_painted, dtype=tf.float32)
+        #eval_lab_in = tf.concat([features_vec, eval_painted], axis=1)
+        eval_lab_in = eval_painted
 
-
-        images_out = self.model.generate(latents_in, labels_in, lod_in)
         eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
-        #self.img_ops['eval'] = eval_images_out
+        self.img_ops['eval'] = eval_images_out
 
         fake_scores_out, fake_scaled = self.model.discriminate(images_out, labels_in, lod_in)
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
@@ -145,7 +146,6 @@ class ListTrainer(TFListTrainer):
     def make_loss_ops(self):
         self.define_connections()
 
-        #gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out']-self.model.scores['real_scores_out'])
         gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],

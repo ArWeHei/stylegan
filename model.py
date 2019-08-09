@@ -173,7 +173,6 @@ class adv_discriminator(object):
         self.kwargs['truncation_psi']      = config.get('truncation_psi',         0.7)   # Style strength multiplier for the truncation trick. None = disable.
         self.kwargs['truncation_cutoff']   = config.get('truncation_cutoff',      8)     # Number of layers for which to apply the truncation trick. None = disable.
         self.kwargs['dlatent_avg_beta']    = config.get('dlatent_avg_beta',       0.995) # Decay for tracking the moving average of W during training. None = disable.
-        self.kwargs['style_mixing_prob']   = config.get('style_mixing_prob',      0.9)   # Probability of mixing styles during training. None = disable.
         self.kwargs['dlatent_size']        = config.get('dlatent_size',           128)          # Disentangled latent (W) dimensionality.
         self.kwargs['num_layers']          = config.get('num_channels',           3)            # Number of output color channels.
 
@@ -182,8 +181,6 @@ class adv_discriminator(object):
         self.kwargs['mapping_lrmul']           = config.get('mapping_lrmul',        0.01)         # Learning rate multiplier for the mapping layers.
         self.kwargs['mapping_nonlinearity']    = config.get('mapping_nonlinearity', 'lrelu')      # Activation function: 'relu', 'lrelu'.
         self.kwargs['use_styles']          = config.get('use_styles',         True)         # Enable style inputs?
-        self.kwargs['use_noise']           = config.get('use_noise',          False)         # Enable noise inputs?
-        self.kwargs['randomize_noise']     = config.get('randomize_noise',    False)         # True = randomize noise inputs every time (non-deterministic), False = read noise inputs from variables.
         self.kwargs['nonlinearity']        = config.get('nonlinearity',       'lrelu')      # Activation function: 'relu', 'lrelu'
         self.kwargs['use_pixel_norm']      = config.get('use_pixel_norm',     False)        # Enable pixelwise feature vector normalization?
         self.kwargs['use_instance_norm']   = config.get('use_instance_norm',  True)         # Enable instance normalization?
@@ -212,8 +209,8 @@ class adv_discriminator(object):
         self.network = make_model(self.name, networks.D_style, components=components, **self.kwargs)
         #self.scores_out = self.network(self.images_in, self.labels_in)
 
-    def __call__(self, images_in, labels_in, lod_in):
-        return self.network(images_in, labels_in, lod_in)
+    def __call__(self, *args, **kwargs):
+        return self.network(*args, **kwargs)
 
     @property
     def variables(self):
@@ -235,7 +232,7 @@ class TrainModel(object):
     def generate(self, *args, **kwargs):
         return self.generator(*args, **kwargs)
 
-    def discriminate(self, *args, **kwargs:
+    def discriminate(self, *args, **kwargs):
         return self.discriminator(*args, **kwargs)
 
     @property
