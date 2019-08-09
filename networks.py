@@ -438,9 +438,7 @@ def D_style(
 
 
 def D_mapping(
-    latents_in,                             # First input: Latent vectors (Z) [minibatch, latent_size].
     labels_in,                              # Second input: Conditioning labels [minibatch, label_size].
-    latent_size             = 512,          # Latent vector (Z) dimensionality.
     label_size              = 0,            # Label dimensionality, 0 if no labels.
     dlatent_size            = 512,          # Disentangled latent (W) dimensionality.
     dlatent_broadcast       = None,         # Output disentangled latent (W) as [minibatch, dlatent_size] or [minibatch, dlatent_broadcast, dlatent_size].
@@ -449,29 +447,21 @@ def D_mapping(
     mapping_lrmul           = 0.01,         # Learning rate multiplier for the mapping layers.
     mapping_nonlinearity    = 'lrelu',      # Activation function: 'relu', 'lrelu'.
     use_wscale              = True,         # Enable equalized learning rate?
-    normalize_latents       = True,         # Normalize latent vectors (Z) before feeding them to the mapping layers?
     dtype                   = 'float32',    # Data type to use for activations and outputs.
     **kwargs):                             # Ignore unrecognized keyword args.
 
     act, gain = {'relu': (tf.nn.relu, np.sqrt(2)), 'lrelu': (ops.leaky_relu, np.sqrt(2))}[mapping_nonlinearity]
 
     # Inputs.
-    latents_in.set_shape([None, latent_size])
     labels_in.set_shape([None, label_size])
-    latents_in = tf.cast(latents_in, dtype)
     labels_in = tf.cast(labels_in, dtype)
-    x = latents_in
+    x = tf.get_variable('mapping_const', shape=[label_size+1], initializer=tf.initializers.random_normal())
 
     # Embed labels and concatenate them with latents.
     if label_size:
-        with tf.variable_scope('LabelConcat'):
-            w = tf.get_variable('weight', shape=[label_size, latent_size], initializer=tf.initializers.random_normal())
-            y = tf.matmul(labels_in, tf.cast(w, dtype))
-            x = tf.concat([x, y], axis=1)
-
-    # Normalize latents.
-    if normalize_latents:
-        x = ops.pixel_norm(x)
+        x = labels_in
+    else:
+        x = tf.get_variable('mapping_const', shape=[1], initializer=tf.initializers.random_normal())
 
     # Mapping layers.
     for layer_idx in range(mapping_layers):
@@ -502,8 +492,6 @@ def D_synthesis(
     fmap_max            = 512,          # Maximum number of feature maps in any layer.
     nonlinearity        = 'lrelu',      # Activation function: 'relu', 'lrelu',
     use_styles          = True,         # Enable style inputs?
-    use_noise           = True,         # Enable noise inputs?
-    randomize_noise     = True,         # True = randomize noise inputs every time (non-deterministic), False = read noise inputs from variables.
     use_wscale          = True,         # Enable equalized learning rate?
     mbstd_group_size    = 4,            # Group size for the minibatch standard deviation layer, 0 = disable.
     mbstd_num_features  = 1,            # Number of features for the minibatch standard deviation layer.
@@ -532,18 +520,11 @@ def D_synthesis(
     dlatents_in = tf.cast(dlatents_in, dtype)
     scores_out = None
 
-    # Noise inputs.
-    noise_inputs = []
-    if use_noise:
-        for layer_idx in range(num_layers):
-            res = layer_idx // 2 + 2
-            shape = [1, use_noise, 2**res, 2**res]
-            noise_inputs.append(tf.get_variable('noise%d' % layer_idx, shape=shape, initializer=tf.initializers.random_normal(), trainable=False))
 
     # Things to do at the end of each layer.
-    def layer_prologue(x, layer_idx):
-        if use_noise:
-            x = ops.apply_noise(x, noise_inputs[layer_idx], randomize_noise=randomize_noise)
+    def layer_epilogue(x, layer_idx):
+        x = ops.apply_bias(x)
+        x = act(x)
         if use_pixel_norm:
             x = ops.pixel_norm(x)
         if use_instance_norm:
@@ -560,14 +541,14 @@ def D_synthesis(
         with tf.variable_scope('%dx%d' % (2**res, 2**res)):
             if res >= 3: # 8x8 and up
                 with tf.variable_scope('Conv0'):
-                    x = act(ops.apply_bias(ops.conv2d(layer_prologue(x, res*2-4), fmaps=nf(res-1), kernel=3, gain=gain, use_wscale=use_wscale)))
+                    x = layer_epilogue(ops.conv2d(x, fmaps=nf(res-1), kernel=3, gain=gain, use_wscale=use_wscale), res*2-4)
                 with tf.variable_scope('Conv1_down'):
-                    x = act(ops.apply_bias(ops.conv2d_downscale2d(blur(layer_prologue(x, res*2-3)), fmaps=nf(res-2), kernel=3, gain=gain, use_wscale=use_wscale, fused_scale=fused_scale)))
+                    x = layer_epilogue(ops.conv2d_downscale2d(blur(x), fmaps=nf(res-2), kernel=3, gain=gain, use_wscale=use_wscale, fused_scale=fused_scale), res*2-3)
             else: # 4x4
                 if mbstd_group_size > 1:
                     x = ops.minibatch_stddev_layer(x, mbstd_group_size, mbstd_num_features)
                 with tf.variable_scope('Conv'):
-                    x = act(ops.apply_bias(ops.conv2d(layer_prologue(x, res*2-3), fmaps=nf(res-1), kernel=3, gain=gain, use_wscale=use_wscale)))
+                    x = layer_epilogue(ops.conv2d(x, fmaps=nf(res-1), kernel=3, gain=gain, use_wscale=use_wscale), res*2-3)
                 with tf.variable_scope('Dense0'):
                     x = act(ops.apply_bias(ops.dense(x, fmaps=nf(res-2), gain=gain, use_wscale=use_wscale)))
                 with tf.variable_scope('Dense1'):

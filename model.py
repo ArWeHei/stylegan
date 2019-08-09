@@ -177,12 +177,10 @@ class adv_discriminator(object):
         self.kwargs['dlatent_size']        = config.get('dlatent_size',           128)          # Disentangled latent (W) dimensionality.
         self.kwargs['num_layers']          = config.get('num_channels',           3)            # Number of output color channels.
 
-        self.kwargs['latent_size']             = config.get('latent_size',          128)          # Latent vector (Z) dimensionality.
         self.kwargs['mapping_layers']          = config.get('mapping_layers',       4)            # Number of mapping layers.
         self.kwargs['mapping_fmaps']           = config.get('mapping_fmaps',        128)          # Number of activations in the mapping layers.
         self.kwargs['mapping_lrmul']           = config.get('mapping_lrmul',        0.01)         # Learning rate multiplier for the mapping layers.
         self.kwargs['mapping_nonlinearity']    = config.get('mapping_nonlinearity', 'lrelu')      # Activation function: 'relu', 'lrelu'.
-        self.kwargs['normalize_latents']       = config.get('normalize_latents',    True)         # Normalize latent vectors (Z) before feeding them to the mapping layers?
         self.kwargs['use_styles']          = config.get('use_styles',         True)         # Enable style inputs?
         self.kwargs['use_noise']           = config.get('use_noise',          False)         # Enable noise inputs?
         self.kwargs['randomize_noise']     = config.get('randomize_noise',    False)         # True = randomize noise inputs every time (non-deterministic), False = read noise inputs from variables.
@@ -196,7 +194,7 @@ class adv_discriminator(object):
 
     @property
     def inputs(self):
-        return {'images_in':self.images_in, 'latents_in':self.latents_in, 'labels_in': self.labels_in}
+        return {'images_in':self.images_in, 'labels_in': self.labels_in}
 
     @property
     def outputs(self):
@@ -214,8 +212,8 @@ class adv_discriminator(object):
         self.network = make_model(self.name, networks.D_style, components=components, **self.kwargs)
         #self.scores_out = self.network(self.images_in, self.labels_in)
 
-    def __call__(self, images_in, latents_in, labels_in, lod_in):
-        return self.network(images_in, latents_in, labels_in, lod_in)
+    def __call__(self, images_in, labels_in, lod_in):
+        return self.network(images_in, labels_in, lod_in)
 
     @property
     def variables(self):
@@ -227,21 +225,18 @@ class TrainModel(object):
     def __init__(self, config):
         self.config=config
         self.generator = generator(config)
-        #self.discriminator = adv_discriminator(config)
-        self.discriminator = discriminator(config)
+        self.discriminator = adv_discriminator(config)
+        #self.discriminator = discriminator(config)
         self.variables = {
             'generator':self.generator.variables,
             'discriminator':self.discriminator.variables,
         }
 
-    def generate(self, latents_in, labels_in, lod_in):
-        return self.generator(latents_in, labels_in, lod_in)
+    def generate(self, *args, **kwargs):
+        return self.generator(*args, **kwargs)
 
-    def discriminate(self, images_in, latents_in, labels_in, lod_in):
-        return self.discriminator(images_in=images_in,
-                                  latents_in=latents_in,
-                                  labels_in=labels_in,
-                                  lod_in=lod_in)
+    def discriminate(self, *args, **kwargs:
+        return self.discriminator(*args, **kwargs)
 
     @property
     def all_variables(self):
