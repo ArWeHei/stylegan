@@ -50,10 +50,20 @@ class ListTrainer(TFListTrainer):
             )
         self.hooks.append(ckpt_hook)
 
+
+        LODschedule = self.config.get('LODschedule',
+            {
+                4:[     0,  10000],
+                3:[ 20000,  40000],
+                2:[ 80000, 160000],
+                1:[320000, 640000],
+                0:[1000000, 1000000],
+            })
         lodhook = LODHook(self.lod_in,
             scalars = self.lod_scalar_ops,
             root_path=ProjectManager.train,
             summary_writer = tb_writer,
+            schedule=LODschedule
         )
         self.hooks.append(lodhook)
 
@@ -78,6 +88,7 @@ class ListTrainer(TFListTrainer):
         batch_size = self.config["batch_size"]
         mirror_augment = self.config.get('mirror_augment', True)
         drange_net = self.config.get('drange_net', [-1, 1])
+        combine_features = self.config.get('combine_features', True)
 
         with tf.name_scope('placeholder'):
             dtype = self.config.get('dtype', tf.float32)
@@ -102,16 +113,20 @@ class ListTrainer(TFListTrainer):
         self.s_ops['lod'] = lod_in
         self.lod_in = lod_in
 
-        #labels_in = tf.concat([features_vec, painted], axis=1)
-        labels_in = painted
+        if combine_features:
+            labels_in = tf.concat([features_vec, painted], axis=1)
+        else:
+            labels_in = painted
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
         eval_lat_in = np.repeat(np.random.standard_normal((batch_size//2, 512)), 2, axis=0)
         eval_lat_in = tf.constant(eval_lat_in)
         eval_painted = np.tile([[1,0,1], [0,1,-1]], (batch_size//2, 1))
         eval_painted = tf.constant(eval_painted, dtype=tf.float32)
-        #eval_lab_in = tf.concat([features_vec, eval_painted], axis=1)
-        eval_lab_in = eval_painted
+        if combine_features:
+            eval_lab_in = tf.concat([features_vec, eval_painted], axis=1)
+        else:
+            eval_lab_in = eval_painted
 
         eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
         self.img_ops['eval'] = eval_images_out
@@ -184,21 +199,21 @@ class ListTrainer(TFListTrainer):
 
     def run(self, fetches, feed_dict):
         #decide in run when to switch optimizers
-        #if self.D_loss/self.G_loss > 16:
-        #    self.curr_phase = 'discr'
-        #elif self.G_loss/self.D_loss > 16:
+        if self.D_loss/self.G_loss > 2:
+            self.curr_phase = 'discr'
+        elif self.G_loss/self.D_loss > 2:
+            self.curr_phase = 'gen'
+        #if self.D_loss < self.G_loss:
         #    self.curr_phase = 'gen'
-        #if self.D_loss > self.G_loss:
-        #    self.curr_phase = 'gen'
-        if self.curr_phase == 'discr':
+        elif self.curr_phase == 'discr':
             self.curr_phase = 'gen'
         elif self.curr_phase == 'gen':
             self.curr_phase = 'discr'
 
-        if self.G_count >= 2:
-            self.curr_phase = 'discr'
-        elif self.D_count >= 2:
-            self.curr_phase = 'gen'
+        #if self.G_count >= 2:
+        #    self.curr_phase = 'discr'
+        #elif self.D_count >= 2:
+        #    self.curr_phase = 'gen'
 
         if self.curr_phase == 'discr':
             train_idx = 1

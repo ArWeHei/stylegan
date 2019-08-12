@@ -10,14 +10,15 @@ import glob
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+import tensorflow as tf
 
 def MNIST_w_noise(config):
     p = lambda **kwargs: noise(config, **kwargs)
-    return ProcessedDataset(CelebA(config), p)
+    return ProcessedDataset(MNIST(config), p)
 
 def SVHN_w_Noise(config):
     p = lambda **kwargs: noise(config, **kwargs)
-    return ProcessedDataset(PortraitsFromWikiArt(config), p)
+    return ProcessedDataset(SVHN(config), p)
 
 def noise(config, **kwargs):
     latent_size = config.get('latent_size', 512) # Latent vector (Z) dimensionality.
@@ -26,11 +27,11 @@ def noise(config, **kwargs):
 
 def MNISTnSVHN(config):
     balanced = config.get('balanced_datasets', False)
-    return ConcatenatedDataset(CelebA(config), PortraitsFromWikiArt(config), balanced=balanced)
+    return ConcatenatedDataset(MNIST(config), SVHN(config), balanced=balanced)
 
 def MNISTnSVHN_w_Noise(config):
     p = lambda **kwargs: noise(config, **kwargs)
-    return ProcessedDataset(CelebAnPortraits(config), p)
+    return ProcessedDataset(MNISTnSVHN(config), p)
 
 class MNIST(DatasetMixin):
     def __init__(self, config):
@@ -40,7 +41,7 @@ class MNIST(DatasetMixin):
         data_path = os.path.join(data_dir, "mnist.npz")
         # Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
         self.data_train, self.data_test = tf.keras.datasets.mnist.load_data(
-            path=data_path
+            path="mnist.npz"
         )
         self.im_shape = config.get(
             "spatial_size", [32, 32]
@@ -51,17 +52,23 @@ class MNIST(DatasetMixin):
     def preprocess(self, image):
         image = image.astype(np.float32)
         image = image /255 *2 - 1.0
+        image = image[...,np.newaxis]
+        image = np.tile(image, 3)
         r = resize(image, self.im_shape)
         #include conversion to rgb image
-        return np.expand_dims(r, -1)
+        return r
 
     def get_example(self, idx):
         example = dict()
 
         image = self.data_train[0][idx]
         class_ = self.data_train[1][idx]
-        example["image"] = self.preprocess(image)
-        example["target"] = class_
+        feature = -np.ones(10)
+        feature[class_] = 1
+        image = self.preprocess(image)
+        image = image.transpose(2, 0, 1) # HWC => CHW
+        example["image"] = image
+        example["feature_vec"] = feature
         example["painted"] = np.array([1,0,-1])
         return example
 
@@ -75,8 +82,9 @@ class SVHN(DatasetMixin):
 
         data_dir = config.get('svhn_dir', './svhn')
         data_path = os.path.join(data_dir, 'train_32x32.mat')
-        self.data = sio.loadmat(data_path)
-        pprint(self.data)
+        self.data_train = sio.loadmat(data_path)
+        self.data_train['y'][self.data_train['y']==[10]] = [0]
+        print(self.data_train['y'])
 
         self.im_shape = config.get(
             "spatial_size", [32, 32]
@@ -88,19 +96,23 @@ class SVHN(DatasetMixin):
         image = image.astype(np.float32)
         image = image / 255 *2 - 1.0
         r = resize(image, self.im_shape)
-        return np.expand_dims(r, -1)
+        return r
 
     def get_example(self, idx):
         example = dict()
 
-        image = self.data_train['X'][:,:,:,idx]
-        class_ = self.data_train['y'][idx]
-        example["image"] = self.preprocess(image)
-        example["target"] = class_
+        image = self.data_train['X'][...,idx]
+        class_ = self.data_train['y'][idx][0]
+        feature = -np.ones(10)
+        feature[class_] = 1
+        image = self.preprocess(image)
+        image = image.transpose(2, 0, 1) # HWC => CHW
+        example["image"] = image
+        example["feature_vec"] = feature
         example["painted"] = np.array([0,1,-1])
         return example
 
     def __len__(self):
-        return len(self.data_train[0])
+        return len(self.data_train['y'])
 
 

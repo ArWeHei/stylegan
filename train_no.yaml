@@ -1,9 +1,21 @@
-dataset: stylegan.no_datasets.MNISTnSVHN_w_Noise
+dataset: stylegan.no_datasets.SVHN_w_Noise
 model: stylegan.model.TrainModel
 iterator: stylegan.trainer.ListTrainer
 
 balanced_datasets: True
+batch_size: 64
 
-label_size: 3
+combine_features: True
+label_size: 13
 resolution: 32
+spatial_size: 32
+mbstd_group_size: 0
 
+LODschedule:
+    {
+        2:[     0,  15000],
+        1:[ 30000,  45000],
+        0:[ 60000,  75000],
+        #0:[ 90000, 105000],
+        #0:[120000,1000000],
+    }
