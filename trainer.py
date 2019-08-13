@@ -10,7 +10,7 @@ from edflow.project_manager import ProjectManager
 from edflow.tf_util import make_linear_var
 
 
-from .loss import G_logistic_nonsaturating, D_logistic
+from .loss import G_logistic_nonsaturating, D_logistic, Q_sigmoid_crossentropy
 from .misc import process_reals
 from .hooks import *
 import stylegan.ops as op
@@ -141,6 +141,7 @@ class ListTrainer(TFListTrainer):
 
         fake_labels_out = self.model.classify(images_out, lod_in)
         real_labels_out = self.model.classify(images_in, lod_in)
+        pprint(fake_labels_out)
 
         self.model.outputs = {
             'images_out': images_out,
@@ -176,10 +177,10 @@ class ListTrainer(TFListTrainer):
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
         class_loss = Q_sigmoid_crossentropy(self.model.scores['fake_labels_out'],
-                                            self.model.inputs['labels_in'])
+                                            (self.model.inputs['labels_in']+1) /2)
         gen_loss += class_loss
         class_loss += Q_sigmoid_crossentropy(self.model.scores['real_labels_out'],
-                                            self.model.inputs['labels_in'])
+                                            (self.model.inputs['labels_in']+1) /2)
 
         self.img_ops['fake'] = self.model.outputs['images_out']
         self.img_ops['real'] = self.model.outputs['scaled_images']
@@ -236,7 +237,7 @@ class ListTrainer(TFListTrainer):
                       self.Q_loss]
 
         dec_boundaries = np.cumsum(dec_values)
-        dec_boundaries /= np.sum(dec_values)
+        dec_boundaries = dec_boundaries/np.sum(dec_values)
 
         r = np.random.uniform()
 

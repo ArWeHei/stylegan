@@ -597,6 +597,7 @@ def Q_basic(
     fmap_decay          = 1.0,          # log2 feature map reduction when doubling the resolution.
     fmap_max            = 512,          # Maximum number of feature maps in any layer.
     nonlinearity        = 'lrelu',      # Activation function: 'relu', 'lrelu',
+    fused_scale         = 'auto',       # True = fused convolution + scaling, False = separate ops, 'auto' = decide automatically.
     use_wscale          = True,         # Enable equalized learning rate?
     dtype               = 'float32',    # Data type to use for activations and outputs.
     blur_filter         = [1,2,1],      # Low-pass filter to apply when resampling activations. None = no filtering.
@@ -666,12 +667,13 @@ def Q_basic(
             return y()
 
         scores_out = grow(2, resolution_log2 - 2)
+        print(scores_out)
 
     # Label conditioning from "Which Training Methods for GANs do actually Converge?"
-    if label_size:
-        with tf.variable_scope('LabelSwitch'):
-            #scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
-            scores_out = tf.reduce_sum(scores_out, axis=1, keepdims=True)
+    #if label_size:
+    #    with tf.variable_scope('LabelSwitch'):
+    #        #scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
+    #        scores_out = tf.reduce_sum(scores_out, axis=1, keepdims=True)
 
     assert scores_out.dtype == tf.as_dtype(dtype)
     scores_out = tf.identity(scores_out, name='scores_out')
