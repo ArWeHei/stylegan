@@ -5,8 +5,8 @@ iterator: stylegan.trainer.ListTrainer
 balanced_datasets: True
 batch_size: 64
 
-combine_features: True
-label_size: 13
+combine_features: False
+label_size: 10
 resolution: 32
 spatial_size: 32
 mbstd_group_size: 0

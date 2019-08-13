@@ -10,7 +10,7 @@ from edflow.project_manager import ProjectManager
 from edflow.tf_util import make_linear_var
 
 
-from .loss import G_logistic_nonsaturating, D_logistic, Q_sigmoid_crossentropy
+from .loss import G_logistic_nonsaturating, D_logistic, Q_sce
 from .misc import process_reals
 from .hooks import *
 import stylegan.ops as op
@@ -59,7 +59,7 @@ class ListTrainer(TFListTrainer):
                 3:[ 20000,  40000],
                 2:[ 80000, 160000],
                 1:[320000, 640000],
-                0:[1000000, 1000000],
+                0:[100000,1000000],
             })
         lodhook = LODHook(self.lod_in,
             scalars = self.lod_scalar_ops,
@@ -118,7 +118,7 @@ class ListTrainer(TFListTrainer):
         if combine_features:
             labels_in = tf.concat([features_vec, painted], axis=1)
         else:
-            labels_in = painted
+            labels_in = features_vec
 
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
@@ -130,17 +130,17 @@ class ListTrainer(TFListTrainer):
         if combine_features:
             eval_lab_in = tf.concat([features_vec, eval_painted], axis=1)
         else:
-            eval_lab_in = eval_painted
+            eval_lab_in = features_vec
 
         eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
         self.img_ops['eval'] = eval_images_out
 
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
-        real_scores_out, real_scaled = self.model.discriminate(images_in, labels_in, lod_in)
-        fake_scores_out, fake_scaled = self.model.discriminate(images_out, labels_in, lod_in)
+        real_scores_out, real_scaled, real_labels_out = self.model.discriminate(images_in, labels_in, lod_in)
+        fake_scores_out, fake_scaled, fake_labels_out = self.model.discriminate(images_out, labels_in, lod_in)
 
-        fake_labels_out = self.model.classify(images_out, lod_in)
-        real_labels_out = self.model.classify(images_in, lod_in)
+        #fake_labels_out = self.model.classify(images_out, lod_in)
+        #real_labels_out = self.model.classify(images_in, lod_in)
         pprint(fake_labels_out)
 
         self.model.outputs = {
@@ -176,11 +176,12 @@ class ListTrainer(TFListTrainer):
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
-        class_loss = Q_sigmoid_crossentropy(self.model.scores['fake_labels_out'],
-                                            (self.model.inputs['labels_in']+1) /2)
+        class_loss = Q_sce(self.model.scores['fake_labels_out'],
+                          (self.model.inputs['labels_in']+1) /2)
         gen_loss += class_loss
-        class_loss += Q_sigmoid_crossentropy(self.model.scores['real_labels_out'],
-                                            (self.model.inputs['labels_in']+1) /2)
+        discr_loss += class_loss
+        #class_loss += Q_sigmoid_crossentropy(self.model.scores['real_labels_out'],
+        #                                    (self.model.inputs['labels_in']+1) /2)
 
         self.img_ops['fake'] = self.model.outputs['images_out']
         self.img_ops['real'] = self.model.outputs['scaled_images']
@@ -197,7 +198,7 @@ class ListTrainer(TFListTrainer):
         losses = []
         losses.append({"generator": gen_loss})
         losses.append({"discriminator": discr_loss})
-        losses.append({"classifier": class_loss})
+        #losses.append({"classifier": class_loss})
 
         g = tf.Variable(0, name="gen_step")
         d = tf.Variable(0, name="discr_step")
@@ -207,7 +208,7 @@ class ListTrainer(TFListTrainer):
         self.class_steps = tf.assign_add(q, 1)
         self.s_ops["gen_steps"] = g
         self.s_ops["discr_steps"] = d
-        self.s_ops["class_steps"] = q
+        #self.s_ops["class_steps"] = q
 
         return losses
 
@@ -233,8 +234,8 @@ class ListTrainer(TFListTrainer):
 
         dec_values = [0,
                       self.G_loss,
-                      self.D_loss,
-                      self.Q_loss]
+                      self.D_loss,]
+                     # self.Q_loss]
 
         dec_boundaries = np.cumsum(dec_values)
         dec_boundaries = dec_boundaries/np.sum(dec_values)
@@ -280,9 +281,9 @@ class ListTrainer(TFListTrainer):
 
         a = self.ema_alpha
 
-        self.Q_loss = a * tmp["custom_scalars"]["losses/class"] + (1 - a)*self.Q_loss
         self.D_loss = a * tmp["custom_scalars"]["losses/discr"] + (1 - a)*self.D_loss
         self.G_loss = a * tmp["custom_scalars"]["losses/gen"] + (1 - a)*self.G_loss
+        #self.Q_loss = a * tmp["custom_scalars"]["losses/class"] + (1 - a)*self.Q_loss
 
         return tmp
 

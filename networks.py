@@ -417,8 +417,8 @@ def D_style(
     # Evaluate synthesis network.
     #with tf.control_dependencies([tf.assign(components['synthesis'].find_var('lod'), lod_in)]):
     with tf.variable_scope('D_synthesis'):
-        scores_out, scaled_imgs = components['synthesis'](images_in, dlatents, lod_in)
-    return tf.identity(scores_out, name='scores_out'), scaled_imgs
+        scores_out, scaled_imgs, labels_out = components['synthesis'](images_in, dlatents, lod_in)
+    return tf.identity(scores_out, name='scores_out'), scaled_imgs, labels_out
 
 
 def D_mapping(
@@ -469,6 +469,7 @@ def D_synthesis(
     dlatents_in,                          # Second input: Labels [minibatch, label_size].
     lod_in,
     dlatent_size        = 512,          # Disentangled latent (W) dimensionality.
+    label_size          = 0,            # Label dimensionality, 0 if no labels.
     num_channels        = 3,            # Number of input color channels. Overridden based on dataset.
     resolution          = 32,           # Input resolution. Overridden based on dataset.
     fmap_base           = 8192,         # Overall multiplier for the number of feature maps.
@@ -529,6 +530,14 @@ def D_synthesis(
                 with tf.variable_scope('Conv1_down'):
                     x = layer_epilogue(ops.conv2d_downscale2d(blur(x), fmaps=nf(res-2), kernel=3, gain=gain, use_wscale=use_wscale, fused_scale=fused_scale), res*2-3)
             else: # 4x4
+                with tf.variable_scope('Q'):
+                    y = tf.identity(x)
+                    with tf.variable_scope('Conv'):
+                        y = act(ops.apply_bias(ops.conv2d(y, fmaps=nf(res-1), kernel=3, gain=gain, use_wscale=use_wscale)))
+                    with tf.variable_scope('Dense0'):
+                        y = act(ops.apply_bias(ops.dense(y, fmaps=nf(res-2), gain=gain, use_wscale=use_wscale)))
+                    with tf.variable_scope('Dense1'):
+                        y = ops.apply_bias(ops.dense(y, fmaps=label_size, gain=1, use_wscale=use_wscale))
                 if mbstd_group_size > 1:
                     x = ops.minibatch_stddev_layer(x, mbstd_group_size, mbstd_num_features)
                 with tf.variable_scope('Conv'):
@@ -537,6 +546,7 @@ def D_synthesis(
                     x = act(ops.apply_bias(ops.dense(x, fmaps=nf(res-2), gain=gain, use_wscale=use_wscale)))
                 with tf.variable_scope('Dense1'):
                     x = ops.apply_bias(ops.dense(x, fmaps=1, gain=1, use_wscale=use_wscale))
+                return x, y
             return x
 
     # Fixed structure: simple and efficient, but does not support progressive growing.
@@ -569,8 +579,6 @@ def D_synthesis(
             x = lambda: fromrgb(ops.downscale2d(images_in, 2**lod), res)
             if lod > 0: x = cset(x, (lod_in < lod), lambda: grow(res + 1, lod - 1))
             x = block(x(), res); y = lambda: x
-            #modify s.t. there is no fading in the discriminator
-            #....and this line do not correlate enough. The network is fed with unknown weigths > bad
             if res > 2: y = cset(y, (lod_in > lod), lambda: util.lerp(x, fromrgb(ops.downscale2d(images_in, 2**(lod+1)), res - 1), lod_in - lod))
             return y()
         def d_scale(lod):
@@ -579,12 +587,12 @@ def D_synthesis(
             y = cset(x, (lod_in > lod), lambda: util.lerp(x(), ops.upscale2d(ops.downscale2d(images_in, 2**(lod+1)), 2**(lod+1)), lod_in - lod))
             return y()
 
-        scores_out = grow(2, resolution_log2 - 2)
+        scores_out, labels_out = grow(2, resolution_log2 - 2)
         scaled_img = d_scale(resolution_log2 - 2)
 
     assert scores_out.dtype == tf.as_dtype(dtype)
     scores_out = tf.identity(scores_out, name='scores_out')
-    return scores_out, scaled_img
+    return scores_out, scaled_img, labels_out
 
 
 def Q_basic(

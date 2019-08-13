@@ -273,7 +273,7 @@ class TrainModel(object):
         self.config=config
         self.generator = generator(config)
         self.discriminator = adv_discriminator(config)
-        self.classfier = classifier(config)
+        #self.classfier = classifier(config)
         #self.discriminator = discriminator(config)
         self.variables = {
             'generator':self.generator.variables,
@@ -286,8 +286,8 @@ class TrainModel(object):
     def discriminate(self, *args, **kwargs):
         return self.discriminator(*args, **kwargs)
 
-    def classify(self, *args, **kwargs):
-        return self.classfier(*args, **kwargs)
+    #def classify(self, *args, **kwargs):
+    #    return self.classfier(*args, **kwargs)
 
     @property
     def all_variables(self):
