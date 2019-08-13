@@ -191,7 +191,7 @@ def G_synthesis(
         if use_pixel_norm:
             x = ops.pixel_norm(x)
         if use_instance_norm:
-            x = ops.instance_norm(x)
+            x = ops.layer_instance_norm(x)
         if use_styles:
             x = ops.style_mod(x, dlatents_in[:, layer_idx], use_wscale=use_wscale)
         return x
@@ -513,7 +513,7 @@ def D_synthesis(
         if use_pixel_norm:
             x = ops.pixel_norm(x)
         if use_instance_norm:
-            x = ops.instance_norm(x)
+            x = ops.layer_instance_norm(x)
         if use_styles:
             x = ops.style_mod(x, dlatents_in[:, layer_idx], use_wscale=use_wscale)
         return x
