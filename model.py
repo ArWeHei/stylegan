@@ -218,11 +218,62 @@ class adv_discriminator(object):
 
 
 #----------------------------------------------------------------------------
+# Discriminator inspired from StyleGAN paper.
+class classifier(object):
+    def __init__(self, config, **kwargs):
+        self.config = config
+
+        self.kwargs = dict()
+        self.kwargs['num_channels']        = config.get('num_channels',       3)            # Number of input color channels. Overridden based on dataset.
+        self.kwargs['resolution']          = config.get('resolution',         32)           # Input resolution. Overridden based on dataset.
+        self.kwargs['label_size']          = config.get('label_size',         0)            # Dimensionality of the labels, 0 if no labels. Overridden based on dataset.
+        self.kwargs['fmap_base']           = config.get('fmap_base',          8192)         # Overall multiplier for the number of feature maps.
+        self.kwargs['fmap_decay']          = config.get('fmap_decay',         1.0)          # log2 feature map reduction when doubling the resolution.
+        self.kwargs['fmap_max']            = config.get('fmap_max',           128)          # Maximum number of feature maps in any layer.
+        self.kwargs['nonlinearity']        = config.get('nonlinearity',       'lrelu')      # Activation function: 'relu', 'lrelu',
+        self.kwargs['use_wscale']          = config.get('use_wscale',         True)         # Enable equalized learning rate?
+        self.kwargs['dtype']               = config.get('dtype',              'float32')    # Data type to use for activations and outputs.
+        self.kwargs['blur_filter']         = config.get('blur_filter',        [1,2,1])      # Low-pass filter to apply when resampling activations. None = no filtering.
+        self.kwargs['structure']           = config.get('structure',          'recursive')       # 'fixed' = no progressive growing, 'linear' = human-readable, 'recursive' = efficient, 'auto' = select automatically.
+
+        self.name = "net/classifier"
+
+        self.define_graph()
+
+    @property
+    def inputs(self):
+        return {'images_in':self.images_in}
+
+    @property
+    def outputs(self):
+        return {'scores_out': self.scores_out}
+
+    def define_graph(self):
+        #with tf.name_scope('placeholder'):
+        #    self.images_in = tf.placeholder(dtype=self.kwargs['dtype'],
+        #                               shape=[None, None, None, None],
+        #                               name='images_in')
+        #    self.labels_in = tf.placeholder(dtype=self.kwargs['dtype'],
+        #                               shape=[None, None],
+        #                               name='labels_in')
+        components = dict()
+        self.network = make_model(self.name, networks.Q_basic, components=components, **self.kwargs)
+
+    def __call__(self, *args, **kwargs):
+        return self.network(*args, **kwargs)
+
+    @property
+    def variables(self):
+        return  [v for v in tf.global_variables() if v.name.startswith(self.name)]
+
+
+#----------------------------------------------------------------------------
 class TrainModel(object):
     def __init__(self, config):
         self.config=config
         self.generator = generator(config)
         self.discriminator = adv_discriminator(config)
+        self.classfier = classifier(config)
         #self.discriminator = discriminator(config)
         self.variables = {
             'generator':self.generator.variables,
@@ -234,6 +285,9 @@ class TrainModel(object):
 
     def discriminate(self, *args, **kwargs):
         return self.discriminator(*args, **kwargs)
+
+    def classify(self, *args, **kwargs):
+        return self.classfier(*args, **kwargs)
 
     @property
     def all_variables(self):

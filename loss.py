@@ -155,3 +155,10 @@ def D_logistic_simplegp(fake_images_out, fake_scores_out, real_scores_out, opt, 
     return loss
 
 #----------------------------------------------------------------------------
+
+
+def Q_sigmoid_crossentropy(class_out, labels_in):
+    loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=class_out, labels=labels_in))
+    return loss
+
+#----------------------------------------------------------------------------

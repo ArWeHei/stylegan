@@ -35,8 +35,10 @@ class ListTrainer(TFListTrainer):
 
         self.G_loss = 1
         self.D_loss = 1
+        self.Q_loss = 1
         self.G_count = 0
         self.D_count = 0
+        self.Q_count = 0
 
         tb_writer = SummaryWriter(ProjectManager.train)
 
@@ -117,12 +119,14 @@ class ListTrainer(TFListTrainer):
             labels_in = tf.concat([features_vec, painted], axis=1)
         else:
             labels_in = painted
+
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
         eval_lat_in = np.repeat(np.random.standard_normal((batch_size//2, 512)), 2, axis=0)
         eval_lat_in = tf.constant(eval_lat_in)
         eval_painted = np.tile([[1,0,1], [0,1,-1]], (batch_size//2, 1))
         eval_painted = tf.constant(eval_painted, dtype=tf.float32)
+
         if combine_features:
             eval_lab_in = tf.concat([features_vec, eval_painted], axis=1)
         else:
@@ -131,10 +135,12 @@ class ListTrainer(TFListTrainer):
         eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
         self.img_ops['eval'] = eval_images_out
 
-        fake_scores_out, fake_scaled = self.model.discriminate(images_out, labels_in, lod_in)
         images_in = process_reals(images_in, lod_in, mirror_augment, [-1, 1], drange_net)
-
         real_scores_out, real_scaled = self.model.discriminate(images_in, labels_in, lod_in)
+        fake_scores_out, fake_scaled = self.model.discriminate(images_out, labels_in, lod_in)
+
+        fake_labels_out = self.model.classify(images_out, lod_in)
+        real_labels_out = self.model.classify(images_in, lod_in)
 
         self.model.outputs = {
             'images_out': images_out,
@@ -145,6 +151,8 @@ class ListTrainer(TFListTrainer):
         self.model.scores = {
             'fake_scores_out': fake_scores_out,
             'real_scores_out': real_scores_out,
+            'fake_labels_out': fake_labels_out,
+            'real_labels_out': real_labels_out,
             }
 
         #self.model.inputs = {'latent':latents_in, 'feature_vec':labels_in, 'image':images_in}
@@ -152,6 +160,7 @@ class ListTrainer(TFListTrainer):
             'latent':latents_in,
             'feature_vec':features_vec,
             'painted':painted,
+            'labels_in':labels_in,
             'image':images_in,
             'lod':lod_in
             }
@@ -161,10 +170,16 @@ class ListTrainer(TFListTrainer):
     def make_loss_ops(self):
         self.define_connections()
 
+
         gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
+        class_loss = Q_sigmoid_crossentropy(self.model.scores['fake_labels_out'],
+                                            self.model.inputs['labels_in'])
+        gen_loss += class_loss
+        class_loss += Q_sigmoid_crossentropy(self.model.scores['real_labels_out'],
+                                            self.model.inputs['labels_in'])
 
         self.img_ops['fake'] = self.model.outputs['images_out']
         self.img_ops['real'] = self.model.outputs['scaled_images']
@@ -172,6 +187,7 @@ class ListTrainer(TFListTrainer):
 
         self.s_ops['losses/gen'] = tf.reduce_mean(gen_loss)
         self.s_ops['losses/discr'] = tf.reduce_mean(discr_loss)
+        self.s_ops['losses/class'] = tf.reduce_mean(class_loss)
         self.s_ops['scores/fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
         self.s_ops['scores/real'] = tf.reduce_mean(self.model.scores['real_scores_out'])
         self.lod_scalar_ops['fake'] = tf.reduce_mean(self.model.scores['fake_scores_out'])
@@ -180,13 +196,17 @@ class ListTrainer(TFListTrainer):
         losses = []
         losses.append({"generator": gen_loss})
         losses.append({"discriminator": discr_loss})
+        losses.append({"classifier": class_loss})
 
         g = tf.Variable(0, name="gen_step")
         d = tf.Variable(0, name="discr_step")
+        q = tf.Variable(0, name="class_step")
         self.discr_steps = tf.assign_add(d, 1) 
         self.gen_steps = tf.assign_add(g, 1)
+        self.class_steps = tf.assign_add(q, 1)
         self.s_ops["gen_steps"] = g
         self.s_ops["discr_steps"] = d
+        self.s_ops["class_steps"] = q
 
         return losses
 
@@ -210,12 +230,24 @@ class ListTrainer(TFListTrainer):
         #elif self.curr_phase == 'gen':
         #    self.curr_phase = 'discr'
 
-        dec_boundary = self.G_loss / (self.G_loss + self.D_loss)
+        dec_values = [0,
+                      self.G_loss,
+                      self.D_loss,
+                      self.Q_loss]
 
-        if dec_boundary > np.random.uniform():
+        dec_boundaries = np.cumsum(dec_values)
+        dec_boundaries /= np.sum(dec_values)
+
+        r = np.random.uniform()
+
+        idx = np.digitize(r, dec_boundaries) - 1
+
+        if idx == 0:
             self.curr_phase = 'gen'
-        else:
+        elif idx == 1:
             self.curr_phase = 'discr'
+        elif idx == 2:
+            self.curr_phase = 'class'
 
         #if self.G_count >= 100:
         #    self.curr_phase = 'discr'
@@ -227,13 +259,19 @@ class ListTrainer(TFListTrainer):
             fetches["d_steps"] = self.discr_steps
             self.D_count += 1
             self.G_count = 0
+            self.Q_count = 0
         elif self.curr_phase == 'gen':
             train_idx = 0
             fetches["g_steps"] = self.gen_steps
             self.G_count += 1
             self.D_count = 0
-
-        self.old_phase = self.curr_phase
+            self.Q_count = 0
+        elif self.curr_phase == 'class':
+            train_idx = 2
+            fetches["q_steps"] = self.class_steps
+            self.Q_count += 1
+            self.D_count = 0
+            self.G_count = 0
 
         fetches["step_ops"] = self.all_train_ops[train_idx]
 
@@ -241,6 +279,7 @@ class ListTrainer(TFListTrainer):
 
         a = self.ema_alpha
 
+        self.Q_loss = a * tmp["custom_scalars"]["losses/class"] + (1 - a)*self.Q_loss
         self.D_loss = a * tmp["custom_scalars"]["losses/discr"] + (1 - a)*self.D_loss
         self.G_loss = a * tmp["custom_scalars"]["losses/gen"] + (1 - a)*self.G_loss
 

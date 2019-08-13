@@ -585,3 +585,96 @@ def D_synthesis(
     assert scores_out.dtype == tf.as_dtype(dtype)
     scores_out = tf.identity(scores_out, name='scores_out')
     return scores_out, scaled_img
+
+
+def Q_basic(
+    images_in,                          # First input: Images [minibatch, channel, height, width].
+    lod_in,
+    num_channels        = 3,            # Number of input color channels. Overridden based on dataset.
+    resolution          = 32,           # Input resolution. Overridden based on dataset.
+    label_size          = 10,            # Dimensionality of the labels, 0 if no labels. Overridden based on dataset.
+    fmap_base           = 8192,         # Overall multiplier for the number of feature maps.
+    fmap_decay          = 1.0,          # log2 feature map reduction when doubling the resolution.
+    fmap_max            = 512,          # Maximum number of feature maps in any layer.
+    nonlinearity        = 'lrelu',      # Activation function: 'relu', 'lrelu',
+    use_wscale          = True,         # Enable equalized learning rate?
+    dtype               = 'float32',    # Data type to use for activations and outputs.
+    blur_filter         = [1,2,1],      # Low-pass filter to apply when resampling activations. None = no filtering.
+    structure           = 'recursive',  # 'fixed' = no progressive growing, 'linear' = human-readable, 'recursive' = efficient, 'auto' = select automatically.
+    **kwargs):                          # Ignore unrecognized keyword args.
+
+    resolution_log2 = int(np.log2(resolution))
+    assert resolution == 2**resolution_log2 and resolution >= 4
+
+    def nf(stage):
+        return min(int(fmap_base / (2.0 ** (stage * fmap_decay))), fmap_max)
+    def blur(x):
+        return ops.blur2d(x, blur_filter) if blur_filter else x
+    act, gain = {'relu': (tf.nn.relu, np.sqrt(2)), 'lrelu': (ops.leaky_relu, np.sqrt(2))}[nonlinearity]
+
+    images_in.set_shape([None, num_channels, resolution, resolution])
+    images_in = tf.cast(images_in, dtype)
+
+    # Building blocks.
+    def fromrgb(x, res): # res = 2..resolution_log2
+        with tf.variable_scope('FromRGB_lod%d' % (resolution_log2 - res), reuse=tf.AUTO_REUSE):
+            return act(ops.apply_bias(ops.conv2d(x, fmaps=nf(res-1), kernel=1, gain=gain, use_wscale=use_wscale)))
+    def block(x, res): # res = 2..resolution_log2
+        with tf.variable_scope('%dx%d' % (2**res, 2**res)):
+            if res >= 3: # 8x8 and up
+                with tf.variable_scope('Conv_down'):
+                    x = act(ops.apply_bias(ops.conv2d_downscale2d(blur(x), fmaps=nf(res-2), kernel=3, gain=gain, use_wscale=use_wscale, fused_scale=fused_scale)))
+            else: # 4x4
+                with tf.variable_scope('Conv'):
+                    x = act(ops.apply_bias(ops.conv2d(x, fmaps=nf(res-1), kernel=3, gain=gain, use_wscale=use_wscale)))
+                with tf.variable_scope('Dense0'):
+                    x = act(ops.apply_bias(ops.dense(x, fmaps=nf(res-2), gain=gain, use_wscale=use_wscale)))
+                with tf.variable_scope('Dense1'):
+                    x = ops.apply_bias(ops.dense(x, fmaps=max(label_size, 1), gain=1, use_wscale=use_wscale))
+            return x
+
+    # Fixed structure: simple and efficient, but does not support progressive growing.
+    if structure == 'fixed':
+        x = fromrgb(images_in, resolution_log2)
+        for res in range(resolution_log2, 2, -1):
+            x = block(x, res)
+        scores_out = block(x, 2)
+
+    # Linear structure: simple but inefficient.
+    if structure == 'linear':
+        img = images_in
+        x = fromrgb(img, resolution_log2)
+        for res in range(resolution_log2, 2, -1):
+            lod = resolution_log2 - res
+            x = block(x, res)
+            img = ops.downscale2d(img)
+            y = fromrgb(img, res - 1)
+            with tf.variable_scope('Grow_lod%d' % lod):
+                x = util.lerp_clip(x, y, lod_in - lod)
+        scores_out = block(x, 2)
+
+    # Recursive structure: complex but efficient.
+    scaled_img = images_in
+    if structure == 'recursive':
+        def cset(cur_lambda, new_cond, new_lambda):
+            return lambda: tf.cond(new_cond, new_lambda, cur_lambda)
+        def grow(res, lod):
+            x = lambda: fromrgb(ops.downscale2d(images_in, 2**lod), res)
+            if lod > 0: x = cset(x, (lod_in < lod), lambda: grow(res + 1, lod - 1))
+            x = block(x(), res); y = lambda: x
+            if res > 2: y = cset(y, (lod_in > lod), lambda: util.lerp(x, fromrgb(ops.downscale2d(images_in, 2**(lod+1)), res - 1), lod_in - lod))
+            return y()
+
+        scores_out = grow(2, resolution_log2 - 2)
+
+    # Label conditioning from "Which Training Methods for GANs do actually Converge?"
+    if label_size:
+        with tf.variable_scope('LabelSwitch'):
+            #scores_out = tf.reduce_sum(scores_out * labels_in, axis=1, keepdims=True)
+            scores_out = tf.reduce_sum(scores_out, axis=1, keepdims=True)
+
+    assert scores_out.dtype == tf.as_dtype(dtype)
+    scores_out = tf.identity(scores_out, name='scores_out')
+    return scores_out
+
+
