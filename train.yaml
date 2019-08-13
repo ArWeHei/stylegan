@@ -7,7 +7,7 @@ model: stylegan.model.TrainModel
 iterator: stylegan.trainer.ListTrainer
 #wikiart_dir: './wikiart'
 art_dir: './artworks/images_align'
-balanced_datasets: True
+balanced_datasets: False
 
 batch_size: 32
 num_steps: 1000000

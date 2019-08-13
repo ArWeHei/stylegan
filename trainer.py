@@ -198,21 +198,28 @@ class ListTrainer(TFListTrainer):
     #    return result
 
     def run(self, fetches, feed_dict):
-        #decide in run when to switch optimizers
-        if self.D_loss/self.G_loss > 2:
-            self.curr_phase = 'discr'
-        elif self.G_loss/self.D_loss > 2:
-            self.curr_phase = 'gen'
-        #if self.D_loss < self.G_loss:
+        ##decide in run when to switch optimizers
+        #if self.D_loss/self.G_loss > 2:
+        #    self.curr_phase = 'discr'
+        #elif self.G_loss/self.D_loss > 2:
         #    self.curr_phase = 'gen'
-        elif self.curr_phase == 'discr':
+        ##if self.D_loss < self.G_loss:
+        ##    self.curr_phase = 'gen'
+        #elif self.curr_phase == 'discr':
+        #    self.curr_phase = 'gen'
+        #elif self.curr_phase == 'gen':
+        #    self.curr_phase = 'discr'
+
+        dec_boundary = self.G_loss / (self.G_loss + self.D_loss)
+
+        if dec_boundary < np.random.uniform():
             self.curr_phase = 'gen'
-        elif self.curr_phase == 'gen':
+        else:
             self.curr_phase = 'discr'
 
-        #if self.G_count >= 2:
+        #if self.G_count >= 100:
         #    self.curr_phase = 'discr'
-        #elif self.D_count >= 2:
+        #elif self.D_count >= 100:
         #    self.curr_phase = 'gen'
 
         if self.curr_phase == 'discr':
