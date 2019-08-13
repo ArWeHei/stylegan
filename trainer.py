@@ -212,7 +212,7 @@ class ListTrainer(TFListTrainer):
 
         dec_boundary = self.G_loss / (self.G_loss + self.D_loss)
 
-        if dec_boundary < np.random.uniform():
+        if dec_boundary > np.random.uniform():
             self.curr_phase = 'gen'
         else:
             self.curr_phase = 'discr'
