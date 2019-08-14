@@ -175,6 +175,7 @@ class ListTrainer(TFListTrainer):
 
 
         gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
+        pprint(self.optimizers)
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'])
