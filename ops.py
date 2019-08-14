@@ -254,19 +254,21 @@ def instance_norm(x, epsilon=1e-8):
 def layer_instance_norm(x, epsilon=1e-8):
     assert len(x.shape) == 4 # NCHW
     ch = x.shape[1]
-    with tf.variable_scope('LayerInstanceNorm'):
+    with tf.variable_scope('InstanceNorm'):
         orig_dtype = x.dtype
         y = tf.cast(x, tf.float32)
         y -= tf.reduce_mean(y, axis=[2,3], keepdims=True)
         epsilon_ = tf.constant(epsilon, dtype=y.dtype, name='epsilonI')
         y *= tf.rsqrt(tf.reduce_mean(tf.square(y), axis=[2,3], keepdims=True) + epsilon_)
 
+    with tf.variable_scope('LayerNorm'):
         z = tf.cast(x, tf.float32)
         z -= tf.reduce_mean(z, axis=[1,2,3], keepdims=True)
         epsilon_ = tf.constant(epsilon, dtype=z.dtype, name='epsilonL')
         z *= tf.rsqrt(tf.reduce_mean(tf.square(z), axis=[1,2,3], keepdims=True) + epsilon_)
 
-        rho = tf.get_variable("rho", [ch], initializer=tf.constant_initializer(0.0), constraint=lambda x: tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=1.0))
+    with tf.variable_scope('LINorm'):
+        rho = tf.get_variable("rho", [1,ch,1,1], initializer=tf.constant_initializer(0.0), constraint=lambda x: tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=1.0))
         x = rho * y + (1 - rho) * z
 
         x = tf.cast(x, orig_dtype)
