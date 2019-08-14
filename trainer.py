@@ -119,6 +119,7 @@ class ListTrainer(TFListTrainer):
             labels_in = tf.concat([features_vec, painted], axis=1)
         else:
             labels_in = features_vec
+            #labels_in = painted
 
         images_out = self.model.generate(latents_in, labels_in, lod_in)
 
@@ -131,6 +132,7 @@ class ListTrainer(TFListTrainer):
             eval_lab_in = tf.concat([features_vec, eval_painted], axis=1)
         else:
             eval_lab_in = features_vec
+            #eval_lab_in = painted
 
         eval_images_out = self.model.generate(eval_lat_in, eval_lab_in, lod_in)
         self.img_ops['eval'] = eval_images_out
@@ -179,9 +181,9 @@ class ListTrainer(TFListTrainer):
         class_loss = Q_sce(self.model.scores['fake_labels_out'],
                           (self.model.inputs['labels_in']+1) /2)
         gen_loss += class_loss
+        class_loss += Q_sce(self.model.scores['real_labels_out'],
+                         (self.model.inputs['labels_in']+1) /2)
         discr_loss += class_loss
-        #class_loss += Q_sigmoid_crossentropy(self.model.scores['real_labels_out'],
-        #                                    (self.model.inputs['labels_in']+1) /2)
 
         self.img_ops['fake'] = self.model.outputs['images_out']
         self.img_ops['real'] = self.model.outputs['scaled_images']
