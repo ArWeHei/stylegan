@@ -258,13 +258,13 @@ def layer_instance_norm(x, epsilon=1e-8):
         orig_dtype = x.dtype
         y = tf.cast(x, tf.float32)
         y -= tf.reduce_mean(y, axis=[2,3], keepdims=True)
-        epsilon = tf.constant(epsilon, dtype=y.dtype, name='epsilonI')
-        y *= tf.rsqrt(tf.reduce_mean(tf.square(y), axis=[2,3], keepdims=True) + epsilon)
+        epsilon_ = tf.constant(epsilon, dtype=y.dtype, name='epsilonI')
+        y *= tf.rsqrt(tf.reduce_mean(tf.square(y), axis=[2,3], keepdims=True) + epsilon_)
 
         z = tf.cast(x, tf.float32)
         z -= tf.reduce_mean(z, axis=[1,2,3], keepdims=True)
-        epsilon = tf.constant(epsilon, dtype=z.dtype, name='epsilonL')
-        z *= tf.rsqrt(tf.reduce_mean(tf.square(z), axis=[1,2,3], keepdims=True) + epsilon)
+        epsilon_ = tf.constant(epsilon, dtype=z.dtype, name='epsilonL')
+        z *= tf.rsqrt(tf.reduce_mean(tf.square(z), axis=[1,2,3], keepdims=True) + epsilon_)
 
         rho = tf.get_variable("rho", [ch], initializer=tf.constant_initializer(0.0), constraint=lambda x: tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=1.0))
         x = rho * y + (1 - rho) * z
