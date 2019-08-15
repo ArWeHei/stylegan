@@ -6,6 +6,7 @@ import tensorflow as tf
 # Convenience func that casts all of its arguments to tf.float32.
 
 def fp32(*values):
+    print(values)
     if len(values) == 1 and isinstance(values[0], tuple):
         values = values[0]
     values = tuple(tf.cast(v, tf.float32) for v in values)
@@ -130,19 +131,16 @@ def D_logistic(real_scores_out, fake_scores_out): # pylint: disable=unused-argum
     loss += tf.nn.softplus(-real_scores_out)  # -log(logistic(real_scores_out)) # temporary pylint workaround # pylint: disable=invalid-unary-operand-type
     return loss
 
-def D_logistic_simplegp(fake_images_out, fake_scores_out, real_scores_out, opt, training_set, minibatch_size, reals, labels, r1_gamma=10.0, r2_gamma=0.0): # pylint: disable=unused-argument
-    latents = tf.random_normal([minibatch_size] + G.input_shapes[0][1:])
-    #real_scores_out = autosummary('Loss/scores/real', real_scores_out)
-    #fake_scores_out = autosummary('Loss/scores/fake', fake_scores_out)
+def D_logistic_simplegp(real_scores_out, fake_scores_out, reals, fake_images_out, r1_gamma=10.0, r2_gamma=0.0): # pylint: disable=unused-argument
     loss = tf.nn.softplus(fake_scores_out)  # -log(1 - logistic(fake_scores_out))
     loss += tf.nn.softplus(-real_scores_out)  # -log(logistic(real_scores_out)) # temporary pylint workaround # pylint: disable=invalid-unary-operand-type
 
     if r1_gamma != 0.0:
         with tf.name_scope('R1Penalty'):
-            real_loss = opt.apply_loss_scaling(tf.reduce_sum(real_scores_out))
-            real_grads = opt.undo_loss_scaling(fp32(tf.gradients(real_loss, [reals])[0]))
-            r1_penalty = tf.reduce_sum(tf.square(real_grads), axis=[1,2,3])
-            #r1_penalty = autosummary('Loss/r1_penalty', r1_penalty)
+            real_loss = tf.reduce_sum(real_scores_out)
+            real_grads = tf.gradients(real_loss, reals)
+            print(real_grads)
+            r1_penalty = tf.reduce_sum(tf.square(real_grads[0]), axis=[1,2,3])
         loss += r1_penalty * (r1_gamma * 0.5)
 
     if r2_gamma != 0.0:
@@ -150,7 +148,6 @@ def D_logistic_simplegp(fake_images_out, fake_scores_out, real_scores_out, opt, 
             fake_loss = opt.apply_loss_scaling(tf.reduce_sum(fake_scores_out))
             fake_grads = opt.undo_loss_scaling(fp32(tf.gradients(fake_loss, [fake_images_out])[0]))
             r2_penalty = tf.reduce_sum(tf.square(fake_grads), axis=[1,2,3])
-            #r2_penalty = autosummary('Loss/r2_penalty', r2_penalty)
         loss += r2_penalty * (r2_gamma * 0.5)
     return loss
 
