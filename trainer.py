@@ -9,8 +9,7 @@ from edflow.custom_logging import get_logger
 from edflow.project_manager import ProjectManager
 from edflow.tf_util import make_linear_var
 
-
-from .loss import G_logistic_nonsaturating, D_logistic, Q_sce, D_logistic_simplegp
+from .loss import *
 from .misc import process_reals
 from .hooks import *
 import stylegan.ops as op
@@ -172,13 +171,13 @@ class ListTrainer(TFListTrainer):
     def make_loss_ops(self):
         self.define_connections()
 
-
         gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
         print('===============================')
         pprint(self.optimizers)
-        discr_loss = D_logistic(
+        discr_loss = D_logistic_simplegp(
             self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'],
+            self.optimizers['discriminator']
             )
         class_loss = Q_sce(self.model.scores['fake_labels_out'],
                           (self.model.inputs['labels_in']+1) /2)
@@ -216,12 +215,90 @@ class ListTrainer(TFListTrainer):
 
         return losses
 
-    #def run(self, fetches, feed_dict):
-    #    #self.logger.info(feed_dict)
-    #    #self.logger.info(fetches)
-    #    result = super().run(fetches, feed_dict)
-    #    #pprint(result)
-    #    return result
+
+    def create_train_op(self):
+        """Default optimizer + optimize each submodule"""
+        self.train_placeholders["global_step"] = tf.placeholder(
+            tf.int32, name="global_step"
+        )
+        # workaround of https://github.com/tensorflow/tensorflow/issues/23316
+        self._global_step_variable = tf.Variable(0, dtype=tf.int32, trainable=False)
+        self.global_step = tf.assign(
+            self._global_step_variable, self.train_placeholders["global_step"]
+        )
+
+        # Optimizer
+        self.initial_lr = self.config["lr"]
+        self.ultimate_lr = self.config.get("lr_end", self.initial_lr)
+        self.lr_decay_begin = self.config.get("lr_decay_begin", 0)
+        self.lr_decay_end = self.config.get(
+            "lr_decay_end", self.config.get("num_steps")
+        )
+
+        self.lr = lr = make_linear_var(
+            self.global_step,
+            self.lr_decay_begin,
+            self.lr_decay_end,
+            self.initial_lr,
+            self.ultimate_lr,
+            min(self.ultimate_lr, self.initial_lr),
+            max(self.ultimate_lr, self.initial_lr),
+        )
+        optimizer_name = self.config.get("optimizer", "AdamOptimizer")
+        Optimizer = getattr(tf.train, optimizer_name)
+        opt_kwargs = {"learning_rate": lr}
+        if optimizer_name == "AdamOptimizer":
+            opt_kwargs["beta1"] = self.config.get("beta1", 0.5)
+            opt_kwargs["beta2"] = self.config.get("beta2", 0.9)
+
+        self.optimizers = dict()
+        self.all_train_ops = list()
+
+        for k in ['generator', 'discriminator']:
+            current_opt_kwargs = dict(opt_kwargs)
+            current_opt_kwargs["learning_rate"] = current_opt_kwargs[
+                "learning_rate"
+            ] * self.get_learning_rate_multiplier(i)
+            self.optimizers[k] = Optimizer(**current_opt_kwargs)
+
+        # Optimization ops
+        list_of_losses = self.make_loss_ops()
+        assert type(list_of_losses) == list
+        for i, losses in enumerate(list_of_losses):
+            opt_ops = dict()
+            optimizers = dict()
+
+            for k in losses:
+                variables = self.get_trainable_variables(k)
+                opt_ops[k] = self.optimizers[k].minimize(losses[k], var_list=variables)
+                print(i, k, self.get_learning_rate_multiplier(i))
+                print("============================")
+                print(
+                    "\n".join(
+                        [
+                            "{:>22} {:>22} {}".format(
+                                str(v.shape.as_list()),
+                                str(np.prod(v.shape.as_list())),
+                                v.name,
+                            )
+                            for v in variables
+                        ]
+                    )
+                )
+                print(len(variables))
+                print("============================")
+
+            opt_op = tf.group(*opt_ops.values())
+            with tf.control_dependencies([opt_op] + self.update_ops):
+                train_op = tf.no_op()
+            self.all_train_ops.append(train_op)
+
+        self.train_op = None  # dummy, set actual train op in run
+        self.run_once_op = self.make_run_once_op()
+        # add log ops
+        self.log_ops["global_step"] = self.global_step
+        self.log_ops["lr"] = self.lr
+
 
     def make_run_once_op(self):
         print('===============================')
