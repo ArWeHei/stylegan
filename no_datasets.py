@@ -22,7 +22,7 @@ def SVHN_w_Noise(config):
 
 def noise(config, **kwargs):
     latent_size = config.get('latent_size', 512) # Latent vector (Z) dimensionality.
-    latents = np.random.randn(1, latent_size)
+    latents = np.random.RandomState(18).randn(1, latent_size)
     return {'latent':latents[0], **kwargs}
 
 def MNISTnSVHN(config):

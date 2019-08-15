@@ -10,7 +10,7 @@ from edflow.project_manager import ProjectManager
 from edflow.tf_util import make_linear_var
 
 
-from .loss import G_logistic_nonsaturating, D_logistic, Q_sce
+from .loss import G_logistic_nonsaturating, D_logistic, Q_sce, D_logistic_simplegp
 from .misc import process_reals
 from .hooks import *
 import stylegan.ops as op
@@ -143,7 +143,6 @@ class ListTrainer(TFListTrainer):
 
         #fake_labels_out = self.model.classify(images_out, lod_in)
         #real_labels_out = self.model.classify(images_in, lod_in)
-        pprint(fake_labels_out)
 
         self.model.outputs = {
             'images_out': images_out,
@@ -175,10 +174,12 @@ class ListTrainer(TFListTrainer):
 
 
         gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
+        print('===============================')
         pprint(self.optimizers)
         discr_loss = D_logistic(
             self.model.scores['real_scores_out'],
-            self.model.scores['fake_scores_out'])
+            self.model.scores['fake_scores_out'],
+            )
         class_loss = Q_sce(self.model.scores['fake_labels_out'],
                           (self.model.inputs['labels_in']+1) /2)
         gen_loss += class_loss
@@ -222,7 +223,14 @@ class ListTrainer(TFListTrainer):
     #    #pprint(result)
     #    return result
 
+    def make_run_once_op(self):
+        print('===============================')
+        print(self.optimizers)
+        return tf.no_op()
+
     def run(self, fetches, feed_dict):
+        print('===============================')
+        pprint(self.optimizers)
         ##decide in run when to switch optimizers
         #if self.D_loss/self.G_loss > 2:
         #    self.curr_phase = 'discr'
