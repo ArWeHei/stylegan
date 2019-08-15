@@ -70,6 +70,7 @@ class MNIST(DatasetMixin):
         example["image"] = image
         example["feature_vec"] = feature
         example["painted"] = np.array([1,0,-1])
+        example["no"] = class_
         return example
 
     def __len__(self):
@@ -84,7 +85,6 @@ class SVHN(DatasetMixin):
         data_path = os.path.join(data_dir, 'train_32x32.mat')
         self.data_train = sio.loadmat(data_path)
         self.data_train['y'][self.data_train['y']==[10]] = [0]
-        print(self.data_train['y'])
 
         self.im_shape = config.get(
             "spatial_size", [32, 32]
@@ -110,6 +110,7 @@ class SVHN(DatasetMixin):
         example["image"] = image
         example["feature_vec"] = feature
         example["painted"] = np.array([0,1,-1])
+        example["no"] = class_
         return example
 
     def __len__(self):

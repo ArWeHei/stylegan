@@ -173,7 +173,6 @@ class ListTrainer(TFListTrainer):
 
         gen_loss = G_logistic_nonsaturating(self.model.scores['fake_scores_out'])
         discr_loss = D_logistic_simplegp(
-            self.model.scores['real_scores_out'],
             self.model.scores['fake_scores_out'],
             self.model.inputs['image'],
             self.model.outputs['images_out'],
